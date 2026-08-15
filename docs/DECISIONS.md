@@ -65,3 +65,17 @@ Explicitly separate:
 ### Consequences
 - **Positive**: Clear modularity. Planners receive direct decision support with root-cause transparency rather than raw model numbers.
 - **Negative**: Requires careful modeling of lead times and safety stock formulas in Phase 5.
+
+---
+
+## ADR 005: Deterministic Data Engine via Explicit Instance RNG
+
+### Context
+Synthetic data generators often rely on global mutable pseudo-random states (e.g. `random.seed()` or `numpy.random.seed()`), which can produce non-deterministic side effects when tests or modules execute concurrently.
+
+### Decision
+Implement `DataGenerator` with an explicit instance-level random generator (`self.rng = random.Random(seed)`). Avoid any reliance on system clocks, UUID4, or OS randomness during generation.
+
+### Consequences
+- **Positive**: Guaranteed identical logical datasets across different runs and platforms when identical seeds are supplied (`seed=42`). Enables deterministic integration tests and regression benchmarks.
+- **Negative**: All stochastic methods must receive and use the instance RNG explicitly.

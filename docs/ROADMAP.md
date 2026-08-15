@@ -11,17 +11,19 @@
 
 ---
 
-## Phase 1: Deterministic Synthetic Data Engine
-- [ ] Build parameterized synthetic data generator using fixed random seeds (`numpy` / standard library).
-- [ ] Generate realistic store and distribution center topologies (regions, capacities, active flags).
-- [ ] Generate product catalog with realistic cost/price margins and supplier assignments.
-- [ ] Inject planted business signals:
-  - Promotional lift waves.
-  - Supplier lead time delays and fulfillment slippage.
-  - Coupled stockout crisis scenarios (demand surge + late PO -> stockout).
-  - Seasonal trend shifts and regional variation.
-  - Fast-moving staple vs. slow-moving noisy tail SKUs.
-- [ ] Export raw relational CSV/Parquet datasets with deterministic checksums.
+## Phase 1: Deterministic Synthetic Data Engine (Completed)
+- [x] Build parameterized synthetic data generator using explicit random seed (`seed=42`).
+- [x] Generate realistic store and distribution center topologies (1 DC, 4 retail stores across regions).
+- [x] Generate product catalog with 15 SKUs spanning high-velocity, medium, seasonal, staple, and slow-moving items.
+- [x] Inject and verify planted business signals:
+  - Promotional lift waves (+35.57% verified lift on target SKU).
+  - Supplier lead time delays (+9 days verified latency on PO-000907).
+  - Coupled stockout crisis scenarios (demand surge + late PO -> 8 stockout days, 334 unfulfilled units).
+  - Seasonal trend shifts and regional variation (1.76x summer demand in South).
+  - Slow-moving capital drag (428+ days of supply on industrial cleaner SKU).
+  - Stable baseline benchmark item with 0 stockout days.
+- [x] Implement CLI command `python -m src.data.generator` for automated generation and database seeding.
+- [x] Write deterministic reproduction and foreign-key integrity test suite (28 passing tests).
 
 ---
 
@@ -50,18 +52,18 @@
   - Moving Averages and Exponential Smoothing (Holt-Winters).
 - [ ] Build feature engineering pipeline (lag features, rolling stats, promotional flags, calendar indicators).
 - [ ] Train machine learning forecasting model (e.g. LightGBM / Ridge / Scikit-learn regressors).
-- [ ] Compute forecast evaluation metrics across horizons: WAPE, MAE, RMSE, and Forecast Bias per SKU segment.
+- [ ] Compute forecast evaluation metrics across horizons: WAPE, MAE, RMSE, and Forecast Bias per SKU segment (*To be measured in Phase 4*).
 
 ---
 
 ## Phase 5: Operational Risk & Recommendation Engine
 - [ ] Develop Days-of-Supply (DoS) and Runout Estimation engine combining current stock + pipeline POs - forecasted demand.
-- [ ] Calculate Stockout Probability and Excess Inventory Risk indices.
+- [ ] Calculate Stockout Probability and Excess Inventory Risk indices (*To be measured in Phase 5*).
 - [ ] Root-Cause Attribution engine (decomposing risk into demand surge, supplier delay, or reorder point deficit).
 - [ ] Prescriptive Action Generator:
   - Automated PO quantity suggestions ($Q = \text{Target Stock} - (\text{On Hand} + \text{In Transit})$).
   - Lateral DC-to-Store inventory transfer recommendations.
-- [ ] Simulate economic impact (saved lost sales revenue vs. holding cost).
+- [ ] Simulate economic impact (saved lost sales revenue vs. holding cost) (*To be measured in Phase 5*).
 
 ---
 

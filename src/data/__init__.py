@@ -1,5 +1,11 @@
-"""Data access and schema definition package."""
+"""Data access, schema definition, and synthetic generation package."""
 
+from src.data.generator import (
+    DataGenerator,
+    SyntheticDataset,
+    run_generation,
+    seed_database,
+)
 from src.data.schema import (
     calendar_dim,
     create_all_tables,
@@ -28,4 +34,8 @@ __all__ = [
     "sales_transactions",
     "inventory_snapshots",
     "supplier_deliveries",
+    "DataGenerator",
+    "SyntheticDataset",
+    "seed_database",
+    "run_generation",
 ]

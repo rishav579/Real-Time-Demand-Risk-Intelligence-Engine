@@ -6,7 +6,7 @@ The system adheres strictly to the principle of **simplest production-appropriat
 - **No Over-Engineering**: Avoid premature distributed infrastructure (Kafka, Spark, Kubernetes, Celery, Vector DBs, LLM agents).
 - **In-Process & Modular**: Data pipelines, analytical queries, forecasting routines, and risk scoring are built as composable Python modules backed by SQL storage.
 - **Contract-Driven**: Strict separation between data contracts (Pydantic), persistent relational schemas (SQLAlchemy DDL), analytical transformations, and statistical models.
-- **Deterministic & Reproducible**: Fully reproducible synthetic telemetry using pseudo-random seeds to enable rigorous integration testing and regression benchmarking.
+- **Deterministic & Reproducible**: Fully reproducible synthetic telemetry using pseudo-random seeds (`seed=42`) to enable rigorous integration testing and regression benchmarking.
 
 ---
 
@@ -14,8 +14,8 @@ The system adheres strictly to the principle of **simplest production-appropriat
 
 ```mermaid
 flowchart TD
-    subgraph S1 [Phase 1: Deterministic Ingestion]
-        G[Synthetic Data Generator<br/>Fixed Seed & Planted Causal Signals] --> CSV[Raw Stage Datasets]
+    subgraph S1 [Phase 1: Deterministic Ingestion - COMPLETED]
+        G[Synthetic Data Generator<br/>Seed 42 & Planted Causal Signals] --> CSV[Raw In-Memory Telemetry]
     end
 
     subgraph S2 [Phase 2: Data Quality & Storage]
@@ -44,9 +44,23 @@ flowchart TD
 
 ---
 
-## 3. Relational Data Model (Core Entities)
+## 3. Relational Data Model & Dataset Scale
 
-The data contract is built on 8 normalized, high-utility relational tables:
+The data contract is built on 8 normalized relational tables populated by the generator (`seed=42`, 365 calendar days):
+
+```
+Table Scale Summary:
+  calendar_dim         :    365 rows (Full year 2026 daily calendar dimension)
+  products             :     15 rows (Catalog across Beverages, Snacks, Household, Personal Care)
+  locations            :      5 rows (1 Central DC, 4 Regional Stores: NYC, BOS, MIA, SEA)
+  suppliers            :      4 rows (Vendors with distinct lead time & reliability profiles)
+  promotions           :      3 rows (Summer Refreshment, Fall Blitz, Holiday Event)
+  sales_transactions   : 21,900 rows (365 days x 4 stores x 15 SKUs)
+  inventory_snapshots  : 27,375 rows (365 days x 5 facilities x 15 SKUs)
+  supplier_deliveries  :  2,388 rows (Inbound Purchase Orders & gate deliveries)
+  -------------------------------------------------------------
+  Total Database Rows  : 52,050 rows
+```
 
 ```mermaid
 erDiagram
@@ -192,17 +206,31 @@ erDiagram
 
 ---
 
-## 5. Planted Causal Signals (Synthetic Ground Truth)
+## 5. Planted Causal Signals & Verified Ground Truth
 
-To ensure the system is evaluated against ground truth, the synthetic data generator implements deterministic, causal business dynamics:
+The synthetic data engine embeds deterministic causal dynamics with verified measured ground truth:
 
-1. **Promotional Demand Shock**: A planned 2-week discount promotion (+35% demand lift) on high-velocity SKUs in specific urban stores.
-2. **Upstream Supplier Bottleneck**: A key supplier experiences a 9-day fulfillment latency spike during the promotional period.
+1. **Promotional Demand Shock**:
+   - Promotion: `PRM-SUMMER-26` (June 1 - June 14, 2026, 20% discount).
+   - Target SKU: `PRD-BEV-001` (Cold Brew Coffee 12oz).
+   - **Verified Ground Truth**: Non-promo mean demand = 34.56 units/day $\rightarrow$ Promo mean demand = 46.86 units/day (**+35.57% measured lift**).
+2. **Upstream Supplier Inbound Delay**:
+   - Inbound PO: `PO-000907` placed on 2026-05-24 by Store `LOC-ST-01` with `SUP-001`.
+   - Promised Delivery Date: 2026-05-29 (5-day standard lead time).
+   - Actual Delivery Date: 2026-06-07.
+   - **Verified Ground Truth**: **+9 days measured delivery delay**.
 3. **Causal Stockout Crisis**:
-   $$\text{Promotional Demand Surge} + \text{Supplier Inbound Delay} \longrightarrow \text{Inventory Depletion} \longrightarrow \text{Stockout (Unfulfilled Demand)}$$
-4. **Seasonal Weather Wave**: Summer category demand uplift in Southern locations with corresponding decline in Northern regions.
-5. **Slow-Moving Capital Drag**: Low-velocity SKUs subject to minimum order quantity batching, leading to >120 days of supply and excess holding costs.
-6. **Reliable Steady-State Baselining**: Core staple SKUs exhibiting low-variance Poisson demand for baseline forecasting validation.
+   $$\text{Promotional Surge (+35.57\%)} + \text{Inbound PO Delay (+9 Days)} \longrightarrow \text{Inventory Depletion} \longrightarrow \text{Stockout Crisis}$$
+   - **Verified Ground Truth**: 8 stockout days recorded (2026-06-01 to 2026-06-06, 2026-06-11 to 2026-06-12) with **334 total unfulfilled customer demand units**.
+4. **Regional Seasonal Wave**:
+   - Target SKU: `PRD-SEA-001` (Electrolyte Hydration Drink).
+   - **Verified Ground Truth**: South Region (`LOC-ST-03` Miami) summer mean demand = 18.74 units/day vs. winter mean demand = 10.64 units/day (**1.76x summer uplift**).
+5. **Slow-Moving Capital Drag**:
+   - Target SKU: `PRD-HOU-003` (Industrial Floor Degreaser 1Gal).
+   - **Verified Ground Truth**: Daily demand = 0.199 units/day, Average Store Stock = 85.1 units (**428.3 days of supply**).
+6. **Steady-State Benchmark**:
+   - Target SKU: `PRD-BEV-003` (Classic Mineral Water 1L).
+   - **Verified Ground Truth**: 0 stockout days across all stores over the full 365-day year.
 
 ---
 
@@ -210,9 +238,9 @@ To ensure the system is evaluated against ground truth, the synthetic data gener
 
 | Evaluation Dimension | Metric / Validation Method | Target / Standard |
 | :--- | :--- | :--- |
-| **Data Integrity & Contracts** | Great Expectations / Pydantic schema validation, null checks, foreign key validity. | 100% contract compliance, zero orphan records. |
-| **Forecast Accuracy** | WAPE (Weighted Absolute Percentage Error), MAE, RMSE, Forecast Bias. | *To be measured in later phases.* |
-| **Segment Error Analysis** | Accuracy sliced by ABC/XYZ velocity tiers and regional clusters. | *To be measured in later phases.* |
-| **Risk Detection Precision** | Precision, Recall, and F1-score for predicting stockouts $\le 7$ days in advance. | *To be measured in later phases.* |
-| **Prescriptive Impact** | Simulated avoided stockout revenue vs. incremental holding/expedite cost. | *To be measured in later phases.* |
-| **Reproducibility** | Deterministic pipeline rerun with fixed seed. | Identical checksums on generated tables. |
+| **Data Integrity & Contracts** | Pydantic v2 schema validation, `PRAGMA foreign_key_check`, null check. | 100% contract compliance, zero orphan records (Verified in Phase 1). |
+| **Forecast Accuracy** | WAPE (Weighted Absolute Percentage Error), MAE, RMSE, Forecast Bias. | *To be measured in Phase 4.* |
+| **Segment Error Analysis** | Accuracy sliced by ABC/XYZ velocity tiers and regional clusters. | *To be measured in Phase 4.* |
+| **Risk Detection Precision** | Precision, Recall, and F1-score for predicting stockouts $\le 7$ days in advance. | *To be measured in Phase 5.* |
+| **Prescriptive Impact** | Simulated avoided stockout revenue vs. incremental holding/expedite cost. | *To be measured in Phase 5.* |
+| **Reproducibility** | Deterministic pipeline rerun with fixed seed (`seed=42`). | Identical logical records across repeated generations. |
