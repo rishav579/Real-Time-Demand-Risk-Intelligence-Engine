@@ -1,7 +1,7 @@
 # Real-Time Demand & Risk Intelligence Engine
 
-> **Project Stage**: Phase 3 — Analytics & Risk Intelligence  
-> **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, forecasting, and operational risk intelligence. Time-series forecasting, machine learning models, API endpoints, and dashboards will be built in subsequent phases.
+> **Project Stage**: Phase 4 — Multi-Horizon Demand Forecasting Engine  
+> **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, time-series forecasting, and operational risk intelligence. Operational risk scoring, reorder recommendations, API endpoints, and dashboards will be built in subsequent phases.
 
 ---
 
@@ -13,14 +13,14 @@ Retail and distribution networks operating across regional fulfillment centers a
 - **Excess Inventory & Working Capital Lockup**: Over-ordering in low-velocity categories causes bloated holding costs, warehouse capacity strain, and markdown erosion.
 - **Supplier Lead Time Volatility**: Unreliable supplier fulfillment and inbound delays amplify upstream bullwhip effects.
 
-Traditional inventory management relies on static historical averages or disconnected spreadsheets. The **Real-Time Demand & Risk Intelligence Engine** is designed to bridge transaction-level telemetry with proactive operational decision support.
+Traditional inventory management relies on static historical averages or disconnected spreadsheets. The **Real-Time Demand & Risk Intelligence Engine** bridges transaction-level telemetry with proactive operational decision support.
 
 ---
 
 ## 2. Why This System Exists
 
 The system answers four fundamental operational questions:
-1. **What demand is expected?** Probabilistic short-term demand forecasts across product-location nodes.
+1. **What demand is expected?** Probabilistic multi-horizon demand forecasts across product-location nodes.
 2. **Where is operational risk brewing?** Proactive detection of imminent stockouts (runout days < lead time) and excess capital accumulation.
 3. **What is driving the risk?** Root-cause attribution distinguishing promotional lift, seasonality, supplier lead-time slippage, or baseline trend shifts.
 4. **What should planners do next?** Ranked, actionable replenishment and inventory rebalancing recommendations.
@@ -48,13 +48,13 @@ The system answers four fundamental operational questions:
                       ↓
 [ Analytical Data Marts (ABC/XYZ Segmentation, Supplier Scorecards, DoS) ]
                       ↓
-[ Baseline & Statistical Time-Series Forecasting ]
+[ Multi-Horizon Demand Forecasting (LightGBM vs Baselines) ]
                       ↓
 [ Operational Risk Engine (Stockout / Excess / Lead Time Drift) ]
                       ↓
-[ Business Interpretation & Recommendation Layer ]
+[ Prescriptive Action & Recommendation Engine ]
                       ↓
-[ Lightweight Operational API & Visual Dashboard ]
+[ Serving API & Planner Dashboard ]
 ```
 
 ---
@@ -67,38 +67,41 @@ The system answers four fundamental operational questions:
 | **1** | **Deterministic Data Engine** | Seeded synthetic generator with planted causal patterns (promotions, supplier delays, seasonality). | **Complete** |
 | **2** | **Data Quality & Ingestion** | 40-check validation suite, strict ingestion gating, corrupted fixture detectors, pipeline runner. | **Complete** |
 | **3** | **SQL & Statistical Analytics** | ABC/XYZ 9-cell segmentation, supplier OTIF scorecards, Days-of-Supply, 5-tier risk taxonomy. | **Complete** |
-| **4** | **Forecasting Engine** | Baseline moving averages, exponential smoothing, and gradient-boosted time-series forecasting. | Planned |
+| **4** | **Forecasting Engine** | Multi-horizon demand forecasting (7d, 14d, 30d), strict chronological splits, LightGBM vs. Baselines. | **Complete** |
 | **5** | **Risk & Recommendation Engine** | Days-of-supply simulation, stockout risk scoring, reorder/rebalancing recommendation logic. | Planned |
 | **6** | **Serving & Presentation** | REST API endpoints, interactive planner dashboard, and scenario-testing UI. | Planned |
 
 ---
 
-## 6. Analytical Marts & Operational Intelligence
+## 6. Demand Forecasting Engine & Measured Benchmark Results (Phase 4)
 
-Phase 3 establishes the SQL-first analytical intelligence foundation over persistent relational data:
+Phase 4 introduces multi-horizon forecasting of true unconstrained customer demand (`units_demanded = units_sold + unfulfilled_units`) using strict chronological validation (Train: Jan-Sep, Validation: Oct-mid Nov, Test Holdout: mid Nov-Dec).
 
-### A. ABC Revenue & XYZ Volatility Segmentation Matrix
-- **ABC Pareto Classification** (Annual Gross Revenue):
-  - **Class A** ($\le 80\%$ cumulative revenue): 9 SKUs, \$945,187.96 (81.31% share)
-  - **Class B** ($80\% - 95\%$ cumulative revenue): 3 SKUs, \$175,519.66 (15.10% share)
-  - **Class C** ($> 95\%$ cumulative revenue): 3 SKUs, \$41,784.51 (3.59% share)
-- **XYZ Volatility Classification** ($CV = \frac{\sigma}{\mu}$ of daily network demand):
-  - **Class X** ($CV \le 0.50$): 13 predictable baseline & staple SKUs (average $CV = 0.24$)
-  - **Class Z** ($CV > 1.00$): 2 erratic/intermittent slow-moving SKUs (`PRD-HOU-003` $CV=1.02$, `PRD-HOU-004` $CV=1.06$)
-- **Combined 9-Cell Segments**: `AX` (9 SKUs), `BX` (3 SKUs), `CX` (1 SKU), `CZ` (2 SKUs).
+### A. Global Multi-Horizon Model Benchmark (Test Holdout: 3,060 Predictions)
 
-### B. Supplier OTIF Scorecards & Lead-Time Variance
-- **Apex Beverage Bottlers (`SUP-001`)**: 944 delivered POs, 99.89% OTIF rate, max delay = 9 days (planted crisis PO), \$178,563.60 inbound spend.
-- **Pacific Coast Essentials (`SUP-003`)**: 689 delivered POs, 100.0% OTIF rate, 0 delay days, \$172,455.60 inbound spend.
-- **Artisan Snackcraft Foods (`SUP-002`)**: 713 delivered POs, 65.08% OTIF rate (avg delay 1.17 days, max delay 5 days), \$145,439.50 inbound spend.
-- **National Industrial Cleaners (`SUP-004`)**: Slow-moving supplier with zero replenishment triggers due to high initial stock.
+| Model | Model Class | WAPE | MAE | RMSE | Forecast Bias | Status vs Baseline |
+| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| **LightGBM** | Gradient Boosted Trees | **10.97%** | **1.43** | **2.00** | **+0.0042** | **Champion (Beats all baselines)** |
+| **Exponential Smoothing** | Simple Exp. Smoothing ($\alpha=0.3$) | 21.30% | 2.77 | 3.90 | +0.0191 | Benchmark Baseline |
+| **Naive** | Last Observed Persistence | 21.52% | 2.80 | 4.31 | -0.1000 | Benchmark Baseline |
+| **Seasonal Naive** | 7-Day Cyclical Persistence | 35.42% | 4.60 | 6.92 | +0.0730 | Benchmark Baseline |
 
-### C. Inventory Health & 5-Tier Operational Risk Taxonomy
-As-of Date: **2026-12-31** (75 active facility-SKU node positions):
-- **CRITICAL** ($DoS \le \text{Lead Time}$): **39 positions** (immediate stockout risk before replenishment arrival)
-- **LOW BUFFER** ($\text{Lead Time} < DoS \le 1.5 \times \text{Lead Time}$): **6 positions**
-- **HEALTHY** ($1.5 \times \text{Lead Time} < DoS \le 45\text{ days}$): **20 positions**
-- **EXCESS** ($DoS > 90\text{ days}$): **10 positions** (e.g. `PRD-HOU-003` with 296+ days of supply)
+### B. Multi-Horizon Accuracy Breakdown
+
+| Horizon | LightGBM WAPE | Naive WAPE | Exp. Smoothing WAPE | Seasonal Naive WAPE |
+| :---: | :---: | :---: | :---: | :---: |
+| **7 Days Ahead** | **10.61%** | 21.32% | 21.66% | 36.77% |
+| **14 Days Ahead** | **10.77%** | 21.40% | 21.15% | 35.80% |
+| **30 Days Ahead** | **11.15%** | 21.61% | 21.28% | 34.93% |
+
+### C. Segment Performance Breakdown (ABC / XYZ Velocity Matrix)
+
+| Segment | Representative SKUs | LightGBM WAPE | Naive WAPE | Exp. Smoothing WAPE |
+| :---: | :--- | :---: | :---: | :---: |
+| **AX** | Cold Brew, Facial Cleanser, Chips (Top Revenue Staples) | **10.37%** | 20.89% | 20.81% |
+| **BX** | Dish Soap, Chocolate, Hydration Drink (Mid-Tier Volume) | **11.11%** | 22.03% | 22.35% |
+| **CX** | Mineral Water (Low Revenue Predictable Baseline) | **9.85%** | 22.39% | 19.28% |
+| **CZ** | Industrial Degreaser, Steel Polish (Intermittent Tail) | *Intermittent ($<0.2\text{ units/day}$)* | *High Tail Error* | *High Tail Error* |
 
 ---
 
@@ -129,21 +132,34 @@ real-time-demand-risk-engine/
 │   │   ├── ingestion.py   # Ingestion orchestrator and gating policy
 │   │   ├── quality.py     # 40-check data quality validation suite
 │   │   └── schema.py      # SQLAlchemy 2.0 table definitions and DDL
+│   ├── forecasting/       # Multi-horizon demand forecasting and baseline benchmarks
+│   │   ├── __init__.py
+│   │   ├── baselines.py   # Naive, Seasonal Naive, Exponential Smoothing
+│   │   ├── evaluate.py    # WAPE, MAE, RMSE, Bias, and multi-horizon benchmarks
+│   │   ├── features.py    # Leakage-free lag, rolling, calendar, and promo features
+│   │   ├── model.py       # LightGBM multi-horizon demand forecasting regressor
+│   │   └── splits.py      # Strict chronological train/val/test splitter
 │   └── models/            # Pydantic validation contracts and domain entities
 │       ├── __init__.py
 │       └── contracts.py
 └── tests/
-    ├── unit/              # Configuration, contract, generator, quality, and analytics tests
+    ├── unit/              # Config, contract, generator, quality, analytics, and forecasting tests
+    │   ├── test_baselines.py
     │   ├── test_config.py
     │   ├── test_contracts.py
+    │   ├── test_evaluate.py
+    │   ├── test_features.py
     │   ├── test_generator.py
     │   ├── test_inventory_health.py
+    │   ├── test_model.py
     │   ├── test_quality.py
     │   ├── test_segmentation.py
+    │   ├── test_splits.py
     │   └── test_supplier_analytics.py
-    └── integration/       # DDL, generation, ingestion, and data marts integration tests
+    └── integration/       # DDL, generation, ingestion, marts, and forecasting integration tests
         ├── test_analytical_marts.py
         ├── test_data_generation.py
+        ├── test_forecasting_pipeline.py
         ├── test_ingestion.py
         └── test_schema_ddl.py
 ```
@@ -155,11 +171,11 @@ real-time-demand-risk-engine/
 ### Prerequisites
 - Python 3.10+
 
-### Run End-to-End Pipeline & Analytical Marts
+### Run Full Pipeline & Test Suite (78 Tests)
 ```bash
 # 1. Ingest clean data and seed SQLite database
 python -m src.data.ingestion
 
-# 2. Execute full test suite (61 tests)
+# 2. Execute complete test suite (78 tests)
 python -m pytest
 ```

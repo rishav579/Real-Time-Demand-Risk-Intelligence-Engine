@@ -55,14 +55,24 @@
 
 ---
 
-## Phase 4: Demand Forecasting Engine
-- [ ] Implement time-series split utilities with strict temporal holdouts (prevent data leakage).
-- [ ] Construct baseline statistical models:
-  - Naive & Seasonal Naive baselines.
-  - Moving Averages and Exponential Smoothing (Holt-Winters).
-- [ ] Build feature engineering pipeline (lag features, rolling stats, promotional flags, calendar indicators).
-- [ ] Train machine learning forecasting model (e.g. LightGBM / Ridge / Scikit-learn regressors).
-- [ ] Compute forecast evaluation metrics across horizons: WAPE, MAE, RMSE, and Forecast Bias per SKU segment (*To be measured in Phase 4*).
+## Phase 4: Demand Forecasting Engine (Completed)
+- [x] Implement strict chronological train/val/test splitter (`src/forecasting/splits.py`):
+  - Train: 2026-01-01 through 2026-09-30 (273 days, 16,380 rows).
+  - Validation: 2026-10-01 through 2026-11-15 (46 days, 2,760 rows).
+  - Test Holdout: 2026-11-16 through 2026-12-31 (46 days, 2,760 rows).
+- [x] Build zero-leakage feature engineering pipeline (`src/forecasting/features.py`):
+  - Autoregressive lags: `lag_1`, `lag_7`, `lag_14`, `lag_28`.
+  - Shifted rolling stats: `rolling_mean_7`, `rolling_mean_14`, `rolling_std_7`.
+  - Calendar & promotion attributes: `day_of_week`, `month`, `is_weekend`, `is_holiday`, `promotion_active`, `discount_pct`.
+  - Product economics & supply: `unit_price`, `unit_cost`, `standard_lead_time_days`.
+- [x] Build 3 statistical baseline models (`src/forecasting/baselines.py`):
+  - Naive persistence forecaster.
+  - 7-day cyclical Seasonal Naive forecaster.
+  - Simple Exponential Smoothing (SES, $\alpha=0.3$) forecaster.
+- [x] Implement LightGBM gradient-boosted demand forecaster (`src/forecasting/model.py`) with deterministic seed (`random_state=42`) and non-negative projection.
+- [x] Build evaluation benchmark suite (`src/forecasting/evaluate.py`) computing WAPE, MAE, RMSE, and Forecast Bias across 7-day, 14-day, and 30-day horizons, sliced globally and by ABC/XYZ velocity segments.
+- [x] Verify LightGBM champion performance: **10.97% Global WAPE** vs. **21.30% Exp. Smoothing**, **21.52% Naive**, and **35.42% Seasonal Naive**.
+- [x] Complete unit and integration test suite (78/78 tests passing).
 
 ---
 

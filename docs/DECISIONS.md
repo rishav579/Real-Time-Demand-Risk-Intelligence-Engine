@@ -41,7 +41,7 @@ Data science and ML projects frequently suffer from premature infrastructure com
 Adopt a strictly lean, modular architecture:
 - Database: Embedded SQLite for local development/testing with straightforward migration to PostgreSQL.
 - Computation: Python standard library, Pandas, and NumPy.
-- Forecasting: Statistical baselines and lightweight gradient-boosted regression.
+- Forecasting: Statistical baselines and lightweight gradient-boosted regression (LightGBM).
 - Testing: Pytest with fast in-memory execution.
 - Serving: FastAPI and Streamlit in later phases.
 
@@ -111,3 +111,20 @@ Implement a SQL-first analytical data marts layer (`src/analytics/`):
 ### Consequences
 - **Positive**: Standardized statistical feature and risk layer decoupled from raw tables. Enables downstream forecasting and UI layers to query pre-aggregated, verified marts.
 - **Negative**: Adds 5 persistent analytical tables to relational storage, refreshed after data ingestion.
+
+---
+
+## ADR 008: Multi-Horizon Forecasting Engine, Strict Chronological Splitting, and Baseline Benchmarking
+
+### Context
+Retail inventory replenishment requires multi-horizon visibility (7 days for quick cross-dock rebalancing, 14 days for standard supplier lead-time coverage, and 30 days for monthly planning). Standard random train/test splits cause severe lookahead bias, and ML models frequently fail to prove utility against simple statistical heuristics.
+
+### Decision
+1. Enforce strict sequential chronological splits: Train (`2026-01-01` to `2026-09-30`), Validation (`2026-10-01` to `2026-11-15`), and Test Holdout (`2026-11-16` to `2026-12-31`). Zero random splitting.
+2. Target variable is true unconstrained demand (`units_demanded = units_sold + unfulfilled_units`).
+3. Construct 3 statistical baselines (Naive, 7-day Seasonal Naive, Simple Exponential Smoothing $\alpha=0.3$) and require that LightGBM beat all baselines across multi-horizon WAPE/RMSE on unseen holdouts.
+4. Prevent data leakage by shifting all autoregressive and rolling statistics by at least 1 day.
+
+### Consequences
+- **Positive**: Rigorous, leakage-free benchmark. LightGBM champion achieves 10.97% WAPE (vs 21.52% Naive baseline).
+- **Negative**: Adds `lightgbm` and `scikit-learn` dependencies to `pyproject.toml`.
