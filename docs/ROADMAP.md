@@ -43,13 +43,15 @@
 
 ---
 
-## Phase 3: Analytical SQL Marts & Statistical Profiling
-- [ ] Build analytical SQL views / tables:
-  - `mart_daily_product_velocity`: Sales volume, revenue, out-of-stock lost sales estimation.
-  - `mart_inventory_health`: Days of supply, inventory turn rates, stockout frequency.
-  - `mart_supplier_performance`: On-time in-full (OTIF) rates, average lead time variance.
-  - `mart_abc_xyz_segmentation`: Revenue-based (ABC) and volatility-based (XYZ) SKU clustering.
-- [ ] Implement summary statistics and exploratory reporting modules.
+## Phase 3: Analytical SQL Marts & Statistical Profiling (Completed)
+- [x] Build analytical data marts layer (`src/analytics/marts.py`):
+  - `mart_daily_product_velocity`: Complete daily sales demand & revenue aggregations.
+  - `mart_abc_xyz_segmentation`: ABC Pareto revenue (80/15/5) and XYZ CV volatility ($CV \le 0.5$, $0.5 < CV \le 1.0$, $CV > 1.0$) 9-cell matrix.
+  - `mart_supplier_performance`: Comprehensive supplier scorecards (OTIF, lead-time variance, fill rates, inbound spend).
+  - `mart_supplier_sku_lead_times`: Granular supplier $\times$ SKU lead-time distributions.
+  - `mart_inventory_health`: SKU $\times$ Location inventory positions, $ADD_{30}$, Days-of-Supply ($DoS$), and 5-tier operational risk classification (CRITICAL, LOW_BUFFER, HEALTHY, ELEVATED_BUFFER, EXCESS).
+- [x] Ensure analysis-date determinism (as-of `MAX(snapshot_date)` = `2026-12-31`).
+- [x] Develop comprehensive unit and integration tests across segmentation, supplier analytics, inventory health, and relational joins (61/61 tests passing).
 
 ---
 

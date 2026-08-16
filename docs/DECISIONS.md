@@ -93,3 +93,21 @@ Implement a pre-ingestion validation gate (`DataQualityValidator` and `ingest_da
 ### Consequences
 - **Positive**: Guaranteed pristine data layer for downstream analytics. Corrupted data is caught and attributed at the ingestion boundary rather than deep within forecasting models.
 - **Negative**: Requires maintenance of validation rules aligned with schema evolution.
+
+---
+
+## ADR 007: SQL-First Analytical Marts & 5-Tier Operational Risk Taxonomy
+
+### Context
+Downstream forecasting models, scenario simulators, and inventory replenishment planners require aggregated velocity, product volatility tiering, supplier reliability, and stock risk classifications without recomputing complex multi-table joins on raw telemetry.
+
+### Decision
+Implement a SQL-first analytical data marts layer (`src/analytics/`):
+1. `mart_daily_product_velocity`: Complete daily sales telemetry join.
+2. `mart_abc_xyz_segmentation`: 80/15/5 cumulative revenue Pareto distribution and population Coefficient of Variation ($CV \le 0.5$, $0.5 < CV \le 1.0$, $CV > 1.0$) 9-cell matrix.
+3. `mart_supplier_performance`: OTIF fulfillment rates, lead-time variance, and inbound spend.
+4. `mart_inventory_health`: SKU $\times$ Location inventory positions as-of the latest snapshot date (`2026-12-31`), $ADD_{30}$, Days-of-Supply ($DoS$), and a 5-tier operational risk classification (CRITICAL, LOW_BUFFER, HEALTHY, ELEVATED_BUFFER, EXCESS).
+
+### Consequences
+- **Positive**: Standardized statistical feature and risk layer decoupled from raw tables. Enables downstream forecasting and UI layers to query pre-aggregated, verified marts.
+- **Negative**: Adds 5 persistent analytical tables to relational storage, refreshed after data ingestion.

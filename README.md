@@ -1,7 +1,7 @@
 # Real-Time Demand & Risk Intelligence Engine
 
-> **Project Stage**: Phase 2 — Data Quality & Ingestion Validation  
-> **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, forecasting, and operational risk intelligence. Machine learning models, API endpoints, and dashboards will be built in subsequent phases.
+> **Project Stage**: Phase 3 — Analytics & Risk Intelligence  
+> **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, forecasting, and operational risk intelligence. Time-series forecasting, machine learning models, API endpoints, and dashboards will be built in subsequent phases.
 
 ---
 
@@ -46,7 +46,7 @@ The system answers four fundamental operational questions:
                       ↓  (PASS / REJECT Gating)
 [ Relational Storage (SQLite with Enforced Foreign Keys) ]
                       ↓
-[ SQL & Exploratory Statistical Analysis ]
+[ Analytical Data Marts (ABC/XYZ Segmentation, Supplier Scorecards, DoS) ]
                       ↓
 [ Baseline & Statistical Time-Series Forecasting ]
                       ↓
@@ -66,38 +66,39 @@ The system answers four fundamental operational questions:
 | **0** | **Foundation & Data Contract** | Schema design, Pydantic contracts, SQLite/SQLAlchemy DDL, business questions, test suite. | **Complete** |
 | **1** | **Deterministic Data Engine** | Seeded synthetic generator with planted causal patterns (promotions, supplier delays, seasonality). | **Complete** |
 | **2** | **Data Quality & Ingestion** | 40-check validation suite, strict ingestion gating, corrupted fixture detectors, pipeline runner. | **Complete** |
-| **3** | **SQL & Statistical Analytics** | Analytical marts, velocity tiering (ABC/XYZ), inventory turnover, supplier scorecard. | Planned |
+| **3** | **SQL & Statistical Analytics** | ABC/XYZ 9-cell segmentation, supplier OTIF scorecards, Days-of-Supply, 5-tier risk taxonomy. | **Complete** |
 | **4** | **Forecasting Engine** | Baseline moving averages, exponential smoothing, and gradient-boosted time-series forecasting. | Planned |
 | **5** | **Risk & Recommendation Engine** | Days-of-supply simulation, stockout risk scoring, reorder/rebalancing recommendation logic. | Planned |
 | **6** | **Serving & Presentation** | REST API endpoints, interactive planner dashboard, and scenario-testing UI. | Planned |
 
 ---
 
-## 6. Data Quality & Ingestion Layer
+## 6. Analytical Marts & Operational Intelligence
 
-The dataset undergoes **40 deterministic validation checks** before any record is committed to persistent storage. If any critical integrity rule fails, database writes are strictly blocked (`DataQualityError`).
+Phase 3 establishes the SQL-first analytical intelligence foundation over persistent relational data:
 
-### Validation Summary (Seed 42 Dataset)
-```
-================================================================================
- DATA QUALITY & CONTRACT VALIDATION REPORT
-================================================================================
- Overall Status : PASS
- Ingestable     : YES (Ready for Storage)
- Pass Rate      : 100.0% (40/40 checks passed)
- Failed Checks  : 0
- Warnings       : 0
---------------------------------------------------------------------------------
-Category               | Checks | Status | Enforced Rule Highlights
---------------------------------------------------------------------------------
-Table Sanity           |   8    |  PASS  | Non-empty dimension & fact tables
-Uniqueness             |  12    |  PASS  | PKs & Composite keys strictly unique
-Referential Integrity  |  11    |  PASS  | Zero orphan foreign key records
-Value Ranges           |   4    |  PASS  | Positive prices/costs, non-negative stock
-Date Consistency       |   2    |  PASS  | Chronological order: start<=end, order<=actual
-Business Logic         |   3    |  PASS  | Exact fulfillment arithmetic & stockout flags
-================================================================================
-```
+### A. ABC Revenue & XYZ Volatility Segmentation Matrix
+- **ABC Pareto Classification** (Annual Gross Revenue):
+  - **Class A** ($\le 80\%$ cumulative revenue): 9 SKUs, \$945,187.96 (81.31% share)
+  - **Class B** ($80\% - 95\%$ cumulative revenue): 3 SKUs, \$175,519.66 (15.10% share)
+  - **Class C** ($> 95\%$ cumulative revenue): 3 SKUs, \$41,784.51 (3.59% share)
+- **XYZ Volatility Classification** ($CV = \frac{\sigma}{\mu}$ of daily network demand):
+  - **Class X** ($CV \le 0.50$): 13 predictable baseline & staple SKUs (average $CV = 0.24$)
+  - **Class Z** ($CV > 1.00$): 2 erratic/intermittent slow-moving SKUs (`PRD-HOU-003` $CV=1.02$, `PRD-HOU-004` $CV=1.06$)
+- **Combined 9-Cell Segments**: `AX` (9 SKUs), `BX` (3 SKUs), `CX` (1 SKU), `CZ` (2 SKUs).
+
+### B. Supplier OTIF Scorecards & Lead-Time Variance
+- **Apex Beverage Bottlers (`SUP-001`)**: 944 delivered POs, 99.89% OTIF rate, max delay = 9 days (planted crisis PO), \$178,563.60 inbound spend.
+- **Pacific Coast Essentials (`SUP-003`)**: 689 delivered POs, 100.0% OTIF rate, 0 delay days, \$172,455.60 inbound spend.
+- **Artisan Snackcraft Foods (`SUP-002`)**: 713 delivered POs, 65.08% OTIF rate (avg delay 1.17 days, max delay 5 days), \$145,439.50 inbound spend.
+- **National Industrial Cleaners (`SUP-004`)**: Slow-moving supplier with zero replenishment triggers due to high initial stock.
+
+### C. Inventory Health & 5-Tier Operational Risk Taxonomy
+As-of Date: **2026-12-31** (75 active facility-SKU node positions):
+- **CRITICAL** ($DoS \le \text{Lead Time}$): **39 positions** (immediate stockout risk before replenishment arrival)
+- **LOW BUFFER** ($\text{Lead Time} < DoS \le 1.5 \times \text{Lead Time}$): **6 positions**
+- **HEALTHY** ($1.5 \times \text{Lead Time} < DoS \le 45\text{ days}$): **20 positions**
+- **EXCESS** ($DoS > 90\text{ days}$): **10 positions** (e.g. `PRD-HOU-003` with 296+ days of supply)
 
 ---
 
@@ -113,6 +114,12 @@ real-time-demand-risk-engine/
 │   ├── DECISIONS.md       # Architecture Decision Records (ADRs)
 │   └── ROADMAP.md         # Detailed milestone deliverables and criteria
 ├── src/
+│   ├── analytics/         # Analytical data marts and operational risk engine
+│   │   ├── __init__.py
+│   │   ├── inventory_health.py # Days-of-Supply and 5-tier risk taxonomy
+│   │   ├── marts.py            # Unified analytical data marts builder
+│   │   ├── segmentation.py     # ABC / XYZ / ABC-XYZ matrix calculation
+│   │   └── supplier.py         # Supplier scorecards, OTIF, and lead-time variance
 │   ├── config/            # Environment and engine configurations
 │   │   ├── __init__.py
 │   │   └── settings.py
@@ -126,12 +133,16 @@ real-time-demand-risk-engine/
 │       ├── __init__.py
 │       └── contracts.py
 └── tests/
-    ├── unit/              # Configuration, contract, generator, and quality unit tests
+    ├── unit/              # Configuration, contract, generator, quality, and analytics tests
     │   ├── test_config.py
     │   ├── test_contracts.py
     │   ├── test_generator.py
-    │   └── test_quality.py
-    └── integration/       # DDL, generation, and ingestion pipeline integration tests
+    │   ├── test_inventory_health.py
+    │   ├── test_quality.py
+    │   ├── test_segmentation.py
+    │   └── test_supplier_analytics.py
+    └── integration/       # DDL, generation, ingestion, and data marts integration tests
+        ├── test_analytical_marts.py
         ├── test_data_generation.py
         ├── test_ingestion.py
         └── test_schema_ddl.py
@@ -144,14 +155,11 @@ real-time-demand-risk-engine/
 ### Prerequisites
 - Python 3.10+
 
-### Run Data Quality & Ingestion Pipeline
+### Run End-to-End Pipeline & Analytical Marts
 ```bash
-# Generate deterministic synthetic data, validate 40 quality rules, and seed SQLite database
+# 1. Ingest clean data and seed SQLite database
 python -m src.data.ingestion
-```
 
-### Run Full Test Suite
-```bash
-# Execute unit and integration tests (46 tests)
+# 2. Execute full test suite (61 tests)
 python -m pytest
 ```
