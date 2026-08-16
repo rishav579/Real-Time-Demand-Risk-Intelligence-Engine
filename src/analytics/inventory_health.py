@@ -73,6 +73,8 @@ def compute_inventory_health(
             analysis_date = as_of_date
 
         start_30d = analysis_date - timedelta(days=29)
+        as_of_str = analysis_date.isoformat() if isinstance(analysis_date, date) else str(analysis_date)
+        start_30d_str = start_30d.isoformat() if isinstance(start_30d, date) else str(start_30d)
 
         # 1. Query Current As-Of Snapshot & Master Details
         snapshot_query = text("""
@@ -97,7 +99,7 @@ def compute_inventory_health(
             ORDER BY l.location_id, p.product_id;
         """)
 
-        snap_df = pd.read_sql_query(snapshot_query, conn, params={"as_of_date": analysis_date})
+        snap_df = pd.read_sql_query(snapshot_query, conn, params={"as_of_date": as_of_str})
 
         # 2. Query 30-Day Demanded Units (for Stores) or Outbound Draw (for DC)
         demand_30d_query = text("""
@@ -112,7 +114,7 @@ def compute_inventory_health(
         demand_df = pd.read_sql_query(
             demand_30d_query,
             conn,
-            params={"start_30d": start_30d, "as_of_date": analysis_date},
+            params={"start_30d": start_30d_str, "as_of_date": as_of_str},
         )
 
         # 3. Query Historical Stockout Days (30d and Full Year)
@@ -128,7 +130,7 @@ def compute_inventory_health(
         so_df = pd.read_sql_query(
             stockout_query,
             conn,
-            params={"start_30d": start_30d, "as_of_date": analysis_date},
+            params={"start_30d": start_30d_str, "as_of_date": as_of_str},
         )
 
     # Merge Snapshots with Demand and Stockouts

@@ -177,6 +177,8 @@ def simulate_network_runout(
         else:
             analysis_date = as_of_date
 
+        as_of_str = analysis_date.isoformat() if isinstance(analysis_date, date) else str(analysis_date)
+
         # Query snapshot starting positions
         snap_query = text("""
             SELECT 
@@ -200,7 +202,7 @@ def simulate_network_runout(
             WHERE s.snapshot_date = :as_of_date
             ORDER BY s.location_id, s.product_id;
         """)
-        snap_df = pd.read_sql_query(snap_query, conn, params={"as_of_date": analysis_date})
+        snap_df = pd.read_sql_query(snap_query, conn, params={"as_of_date": as_of_str})
 
         # Query open in-transit POs with promised delivery dates
         po_query = text("""
@@ -214,7 +216,7 @@ def simulate_network_runout(
             WHERE po.po_status IN ('PLACED', 'IN_TRANSIT')
                OR (po.po_status = 'DELIVERED' AND po.actual_delivery_date > :as_of_date);
         """)
-        open_pos_df = pd.read_sql_query(po_query, conn, params={"as_of_date": analysis_date})
+        open_pos_df = pd.read_sql_query(po_query, conn, params={"as_of_date": as_of_str})
 
     results = []
     for _, row in snap_df.iterrows():
