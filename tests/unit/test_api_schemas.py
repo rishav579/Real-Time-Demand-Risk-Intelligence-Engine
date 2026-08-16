@@ -24,10 +24,14 @@ def test_health_response_schema():
         "engine_version": "1.0.0",
         "as_of_date": date(2026, 12, 31),
         "database_connected": True,
+        "liveness": True,
+        "readiness": True,
     }
     resp = HealthResponse(**data)
     assert resp.status == "healthy"
     assert resp.as_of_date == date(2026, 12, 31)
+    assert resp.liveness is True
+    assert resp.readiness is True
 
 
 def test_executive_summary_schema():

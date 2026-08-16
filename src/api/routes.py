@@ -37,6 +37,8 @@ def get_health(service: IntelligenceService = Depends(get_intelligence_service))
             engine_version="1.0.0",
             as_of_date=service.as_of_date,
             database_connected=True,
+            liveness=True,
+            readiness=True,
         )
     except Exception as exc:
         raise HTTPException(

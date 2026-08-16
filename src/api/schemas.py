@@ -11,6 +11,8 @@ class HealthResponse(BaseModel):
     engine_version: str = Field(..., json_schema_extra={"example": "1.0.0"})
     as_of_date: date = Field(..., json_schema_extra={"example": "2026-12-31"})
     database_connected: bool = Field(..., json_schema_extra={"example": True})
+    liveness: bool = Field(default=True, json_schema_extra={"example": True})
+    readiness: bool = Field(default=True, json_schema_extra={"example": True})
 
 
 class ExecutiveSummaryResponse(BaseModel):
