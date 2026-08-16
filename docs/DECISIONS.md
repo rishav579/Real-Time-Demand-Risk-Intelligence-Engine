@@ -128,3 +128,22 @@ Retail inventory replenishment requires multi-horizon visibility (7 days for qui
 ### Consequences
 - **Positive**: Rigorous, leakage-free benchmark. LightGBM champion achieves 10.97% WAPE (vs 21.52% Naive baseline).
 - **Negative**: Adds `lightgbm` and `scikit-learn` dependencies to `pyproject.toml`.
+
+---
+
+## ADR 009: Predictive Runout Simulation, Tiered Safety Stock, and Prescriptive Replenishment
+
+### Context
+Inventory planners need more than static historical stockout alerts or raw demand forecasts. They require dynamic simulation of future inventory balances, statistical safety buffers adjusted by revenue tier, explainable root-cause attribution, and prioritized action plans distinguishing between expedited internal transfers and external purchase orders.
+
+### Decision
+Implement a prescriptive risk and replenishment engine (`src/risk/`):
+1. Discrete daily balance simulation consuming 30-day LightGBM point forecasts and trailing-7-day projections to calculate exact Days-to-Runout ($DTR$).
+2. Statistical safety stock combining demand variance ($\sigma_D$) and supplier lead-time variance ($\sigma_{LT}$) with tiered service levels (Class A = 98%, Class B = 95%, Class C = 90%).
+3. Standardized 0–100 Stockout Risk Score and 4-tier taxonomy (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`).
+4. 6-category deterministic root-cause attribution hierarchy (`DEMAND_SURGE`, `SUPPLIER_DELAY`, `UNDER_REPLENISHED`, `INSUFFICIENT_SAFETY_BUFFER`, `SLOW_MOVING_DRAG`, `OVER_ORDER_EXCESS`).
+5. Prescriptive replenishment engine preferring 2-day expedited DC-to-store lateral transfers when DC has surplus stock ($> 2 \times \text{DC } SS$) before generating supplier purchase orders.
+
+### Consequences
+- **Positive**: Converts ML demand forecasts into actionable operational decision support with complete natural language explanations and priority audit trails.
+- **Negative**: Relies on accurate upstream supplier scorecard variance metrics and DC inventory visibility.

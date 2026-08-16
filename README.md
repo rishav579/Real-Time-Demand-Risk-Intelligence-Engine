@@ -1,7 +1,7 @@
 # Real-Time Demand & Risk Intelligence Engine
 
-> **Project Stage**: Phase 4 — Multi-Horizon Demand Forecasting Engine  
-> **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, time-series forecasting, and operational risk intelligence. Operational risk scoring, reorder recommendations, API endpoints, and dashboards will be built in subsequent phases.
+> **Project Stage**: Phase 5 — Predictive Risk & Prescriptive Replenishment Engine  
+> **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, time-series forecasting, and operational risk intelligence. Serving REST APIs and the interactive Streamlit planner dashboard will be built in Phase 6.
 
 ---
 
@@ -23,7 +23,7 @@ The system answers four fundamental operational questions:
 1. **What demand is expected?** Probabilistic multi-horizon demand forecasts across product-location nodes.
 2. **Where is operational risk brewing?** Proactive detection of imminent stockouts (runout days < lead time) and excess capital accumulation.
 3. **What is driving the risk?** Root-cause attribution distinguishing promotional lift, seasonality, supplier lead-time slippage, or baseline trend shifts.
-4. **What should planners do next?** Ranked, actionable replenishment and inventory rebalancing recommendations.
+4. **What should planners do next?** Ranked, actionable replenishment recommendations (Supplier POs and DC-to-Store expedited transfers).
 
 ---
 
@@ -50,9 +50,11 @@ The system answers four fundamental operational questions:
                       ↓
 [ Multi-Horizon Demand Forecasting (LightGBM vs Baselines) ]
                       ↓
-[ Operational Risk Engine (Stockout / Excess / Lead Time Drift) ]
+[ Daily Inventory Simulation & Runout Date Engine ]
                       ↓
-[ Prescriptive Action & Recommendation Engine ]
+[ Predictive Risk Engine & Root-Cause Attribution ]
+                      ↓
+[ Prescriptive Replenishment Engine (Supplier POs & DC Transfers) ]
                       ↓
 [ Serving API & Planner Dashboard ]
 ```
@@ -68,40 +70,44 @@ The system answers four fundamental operational questions:
 | **2** | **Data Quality & Ingestion** | 40-check validation suite, strict ingestion gating, corrupted fixture detectors, pipeline runner. | **Complete** |
 | **3** | **SQL & Statistical Analytics** | ABC/XYZ 9-cell segmentation, supplier OTIF scorecards, Days-of-Supply, 5-tier risk taxonomy. | **Complete** |
 | **4** | **Forecasting Engine** | Multi-horizon demand forecasting (7d, 14d, 30d), strict chronological splits, LightGBM vs. Baselines. | **Complete** |
-| **5** | **Risk & Recommendation Engine** | Days-of-supply simulation, stockout risk scoring, reorder/rebalancing recommendation logic. | Planned |
+| **5** | **Risk & Recommendation Engine** | Daily simulation, tiered safety stock ($Z=2.05$), root-cause attribution, POs & DC transfers. | **Complete** |
 | **6** | **Serving & Presentation** | REST API endpoints, interactive planner dashboard, and scenario-testing UI. | Planned |
 
 ---
 
-## 6. Demand Forecasting Engine & Measured Benchmark Results (Phase 4)
+## 6. Predictive Risk & Prescriptive Replenishment Engine (Phase 5)
 
-Phase 4 introduces multi-horizon forecasting of true unconstrained customer demand (`units_demanded = units_sold + unfulfilled_units`) using strict chronological validation (Train: Jan-Sep, Validation: Oct-mid Nov, Test Holdout: mid Nov-Dec).
+Phase 5 turns multi-horizon demand forecasts into actionable, prioritized supply chain recommendations across 75 active node positions:
 
-### A. Global Multi-Horizon Model Benchmark (Test Holdout: 3,060 Predictions)
+### A. Daily Inventory Balance & Runout Simulation
+- **Balance Equation**: $\text{Stock}_t = \text{Stock}_{t-1} + \text{InboundDeliveries}_t - \hat{D}_t$
+- **30-Day Forecast Integration**: Consumes daily point forecasts directly; projects trailing-7-day forecast average for extended horizons ($30 < DTR \le 180$).
+- **Runout Horizon Breakdown (As of 2026-12-31)**:
+  - `WITHIN_30D`: **65 nodes**
+  - `BEYOND_30D_PROJECTION`: **10 nodes** (slow-moving catalogue items & large stock buffers)
 
-| Model | Model Class | WAPE | MAE | RMSE | Forecast Bias | Status vs Baseline |
-| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **LightGBM** | Gradient Boosted Trees | **10.97%** | **1.43** | **2.00** | **+0.0042** | **Champion (Beats all baselines)** |
-| **Exponential Smoothing** | Simple Exp. Smoothing ($\alpha=0.3$) | 21.30% | 2.77 | 3.90 | +0.0191 | Benchmark Baseline |
-| **Naive** | Last Observed Persistence | 21.52% | 2.80 | 4.31 | -0.1000 | Benchmark Baseline |
-| **Seasonal Naive** | 7-Day Cyclical Persistence | 35.42% | 4.60 | 6.92 | +0.0730 | Benchmark Baseline |
+### B. Statistical Safety Stock ($SS$) & Reorder Point ($ROP$)
+$$SS = Z_{\text{SL}} \times \sqrt{LT \times \sigma_D^2 + D_{\text{avg}}^2 \times \sigma_{LT}^2}$$
+- **Tiered Service Levels**: Class A = 98% ($Z=2.05$), Class B = 95% ($Z=1.65$), Class C = 90% ($Z=1.28$).
+- **Dynamic ROP**: $ROP = \sum_{t=1}^{LT} \hat{D}_t + SS$.
 
-### B. Multi-Horizon Accuracy Breakdown
+### C. Stockout Risk Tiers & Severity Scoring
+- **Stockout Risk Score ($SRS$)**: $\min(100.0, \max(0.0, (1 - DTR/LT) \times 100))$.
+- **CRITICAL** ($DTR \le LT$): **26 nodes** (Average $DTR = 1.94\text{ days}$, Average $SRS = 71.95$)
+- **HIGH** ($LT < DTR \le 1.5 \times LT$): **8 nodes**
+- **MEDIUM** ($1.5 \times LT < DTR \le 2.0 \times LT$): **8 nodes**
+- **LOW** ($DTR > 2.0 \times LT$): **33 nodes**
 
-| Horizon | LightGBM WAPE | Naive WAPE | Exp. Smoothing WAPE | Seasonal Naive WAPE |
-| :---: | :---: | :---: | :---: | :---: |
-| **7 Days Ahead** | **10.61%** | 21.32% | 21.66% | 36.77% |
-| **14 Days Ahead** | **10.77%** | 21.40% | 21.15% | 35.80% |
-| **30 Days Ahead** | **11.15%** | 21.61% | 21.28% | 34.93% |
+### D. Deterministic Root-Cause Attribution
+- `NOMINAL_STABLE`: **34 nodes** (adequate buffer coverage)
+- `INSUFFICIENT_SAFETY_BUFFER`: **27 nodes** (lead-time/demand variance exceeded buffer)
+- `UNDER_REPLENISHED`: **7 nodes** (inventory position breached ROP with 0 in-transit POs)
+- `SLOW_MOVING_DRAG`: **7 nodes** (Class Z intermittent excess stock)
 
-### C. Segment Performance Breakdown (ABC / XYZ Velocity Matrix)
-
-| Segment | Representative SKUs | LightGBM WAPE | Naive WAPE | Exp. Smoothing WAPE |
-| :---: | :--- | :---: | :---: | :---: |
-| **AX** | Cold Brew, Facial Cleanser, Chips (Top Revenue Staples) | **10.37%** | 20.89% | 20.81% |
-| **BX** | Dish Soap, Chocolate, Hydration Drink (Mid-Tier Volume) | **11.11%** | 22.03% | 22.35% |
-| **CX** | Mineral Water (Low Revenue Predictable Baseline) | **9.85%** | 22.39% | 19.28% |
-| **CZ** | Industrial Degreaser, Steel Polish (Intermittent Tail) | *Intermittent ($<0.2\text{ units/day}$)* | *High Tail Error* | *High Tail Error* |
+### E. Prescriptive Action Recommendations (48 Action Items Generated)
+- **DC Transfers (`DC_TRANSFER`)**: **12 actions** (10 URGENT, 2 HIGH). Expedited 2-day transit from Central DC (`LOC-DC-01`) resolving critical store stockouts without vendor lead-time delay.
+- **Supplier Purchase Orders (`PURCHASE_ORDER`)**: **29 actions** (14 URGENT, 4 HIGH, 11 MEDIUM). Sized to target level $S = ROP + 14 \times D_{\text{avg}}$.
+- **Excess Holding Actions (`HOLD_ORDER`)**: **7 actions** (LOW). Pausing replenishment on excess long-tail inventory to mitigate working capital lockup.
 
 ---
 
@@ -139,11 +145,19 @@ real-time-demand-risk-engine/
 │   │   ├── features.py    # Leakage-free lag, rolling, calendar, and promo features
 │   │   ├── model.py       # LightGBM multi-horizon demand forecasting regressor
 │   │   └── splits.py      # Strict chronological train/val/test splitter
-│   └── models/            # Pydantic validation contracts and domain entities
+│   ├── models/            # Pydantic validation contracts and domain entities
+│   │   ├── __init__.py
+│   │   └── contracts.py
+│   └── risk/              # Predictive risk and prescriptive replenishment engine
 │       ├── __init__.py
-│       └── contracts.py
+│       ├── attribution.py     # Deterministic 6-category root-cause attribution
+│       ├── recommendations.py # Prescriptive PO and DC-to-Store transfer generator
+│       ├── risk_scoring.py    # 0-100 stockout risk score & capital-at-risk
+│       ├── safety_stock.py    # Multi-tier ABC safety stock & ROP calculator
+│       └── simulation.py      # Daily inventory discrete balance & runout engine
 └── tests/
-    ├── unit/              # Config, contract, generator, quality, analytics, and forecasting tests
+    ├── unit/              # Config, contract, generator, quality, analytics, forecasting, risk
+    │   ├── test_attribution.py
     │   ├── test_baselines.py
     │   ├── test_config.py
     │   ├── test_contracts.py
@@ -153,14 +167,19 @@ real-time-demand-risk-engine/
     │   ├── test_inventory_health.py
     │   ├── test_model.py
     │   ├── test_quality.py
+    │   ├── test_recommendations.py
+    │   ├── test_risk_scoring.py
+    │   ├── test_safety_stock.py
     │   ├── test_segmentation.py
+    │   ├── test_simulation.py
     │   ├── test_splits.py
     │   └── test_supplier_analytics.py
-    └── integration/       # DDL, generation, ingestion, marts, and forecasting integration tests
+    └── integration/       # DDL, generation, ingestion, marts, forecasting, risk pipeline
         ├── test_analytical_marts.py
         ├── test_data_generation.py
         ├── test_forecasting_pipeline.py
         ├── test_ingestion.py
+        ├── test_risk_and_prescriptive_pipeline.py
         └── test_schema_ddl.py
 ```
 
@@ -171,11 +190,11 @@ real-time-demand-risk-engine/
 ### Prerequisites
 - Python 3.10+
 
-### Run Full Pipeline & Test Suite (78 Tests)
+### Run Full Pipeline & Test Suite (94 Tests)
 ```bash
 # 1. Ingest clean data and seed SQLite database
 python -m src.data.ingestion
 
-# 2. Execute complete test suite (78 tests)
+# 2. Execute complete test suite (94 tests)
 python -m pytest
 ```
