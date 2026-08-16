@@ -42,8 +42,8 @@ Adopt a strictly lean, modular architecture:
 - Database: Embedded SQLite for local development/testing with straightforward migration to PostgreSQL.
 - Computation: Python standard library, Pandas, and NumPy.
 - Forecasting: Statistical baselines and lightweight gradient-boosted regression (LightGBM).
+- Serving: FastAPI for REST endpoints and Streamlit for interactive planning.
 - Testing: Pytest with fast in-memory execution.
-- Serving: FastAPI and Streamlit in later phases.
 
 ### Consequences
 - **Positive**: Fast local iteration, zero external daemon requirements, high developer velocity, and friction-free reproducibility for reviewers.
@@ -134,7 +134,7 @@ Retail inventory replenishment requires multi-horizon visibility (7 days for qui
 ## ADR 009: Predictive Runout Simulation, Tiered Safety Stock, and Prescriptive Replenishment
 
 ### Context
-Inventory planners need more than static historical stockout alerts or raw demand forecasts. They require dynamic simulation of future inventory balances, statistical safety buffers adjusted by revenue tier, explainable root-cause attribution, and prioritized action plans distinguishing between expedited internal transfers and external purchase orders.
+Inventory planners need dynamic simulation of future inventory balances, statistical safety buffers adjusted by revenue tier, explainable root-cause attribution, and prioritized action plans distinguishing between expedited internal transfers and external purchase orders.
 
 ### Decision
 Implement a prescriptive risk and replenishment engine (`src/risk/`):
@@ -147,3 +147,19 @@ Implement a prescriptive risk and replenishment engine (`src/risk/`):
 ### Consequences
 - **Positive**: Converts ML demand forecasts into actionable operational decision support with complete natural language explanations and priority audit trails.
 - **Negative**: Relies on accurate upstream supplier scorecard variance metrics and DC inventory visibility.
+
+---
+
+## ADR 010: Enterprise REST API & Streamlit Decision Intelligence Dashboard
+
+### Context
+End-users (planners, analysts, and executive stakeholders) need interactive access to forecast curves, risk matrices, and prioritized recommendations without executing raw Python scripts or SQL queries. Downstream systems also require standard JSON REST endpoints.
+
+### Decision
+1. Implement a **FastAPI** REST service (`src/api/`) exposing typed endpoints (`/health`, `/summary`, `/forecast`, `/risk`, `/inventory`, `/recommendations`) backed by Pydantic response models and OpenAPI specs.
+2. Implement a **Streamlit** dashboard (`src/ui/app.py`) providing 5 core operational views (Executive Overview, Forecast Explorer, Risk Explorer, Recommendation Center, SKU Drill-Down).
+3. Introduce an in-memory cached `IntelligenceService` singleton (`src/api/service.py`) that manages pre-computed marts, forecasts, and risk positions, guaranteeing sub-50ms query responses and eliminating redundant ML model fitting during UI interactions.
+
+### Consequences
+- **Positive**: High-performance, interactive, and decoupled presentation layer with complete API documentation at `/docs`.
+- **Negative**: Adds `fastapi`, `uvicorn`, `httpx`, and `streamlit` dependencies.

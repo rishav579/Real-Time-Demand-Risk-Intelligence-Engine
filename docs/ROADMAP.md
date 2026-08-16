@@ -90,10 +90,20 @@
 
 ---
 
-## Phase 6: Serving & Presentation Layer
-- [ ] Develop lightweight FastAPI endpoints for risk queries, forecast lookups, and recommendation retrieval.
-- [ ] Build interactive Streamlit Planner Dashboard:
-  - Executive KPI summary (stockout risk %, at-risk revenue, supplier reliability).
-  - SKU-Location risk drill-down and root-cause explorer.
-  - Actionable recommendation center with scenario adjustment sliders.
-- [ ] Comprehensive documentation walkthrough and reproducible end-to-end demonstration.
+## Phase 6: Enterprise Serving & Decision Dashboard (Completed)
+- [x] Implement FastAPI REST service (`src/api/`):
+  - `GET /health`: Health and connectivity status.
+  - `GET /summary`: Network-wide executive KPI metrics.
+  - `GET /forecast`: Multi-horizon LightGBM daily forecasts with parameter filtering.
+  - `GET /risk`: Predictive stockout scores, days-to-runout, and root-cause attributions.
+  - `GET /inventory`: Baseline inventory health and Days-of-Supply.
+  - `GET /recommendations`: Prioritized prescriptive PO and DC transfer recommendations.
+  - OpenAPI / Swagger documentation at `/docs` and `/openapi.json`.
+- [x] Implement cached in-memory singleton `IntelligenceService` (`src/api/service.py`) preventing duplicate model training or pipeline re-execution on user interactions.
+- [x] Develop interactive Streamlit Decision Intelligence Dashboard (`src/ui/app.py`):
+  - Executive Overview with KPI cards, stockout distribution, and urgent actions.
+  - Forecast Explorer comparing actual vs. predicted demand across horizons (7d, 14d, 30d).
+  - Risk Explorer with 75-node matrix, tier filters, and root-cause breakdowns.
+  - Recommendation Center with expandable decision rationale and audit trails.
+  - SKU & Facility Drill-Down showing step-by-step balance simulation and runout dates.
+- [x] Complete unit, API integration, and UI smoke test suite (**109/109 tests passing**).

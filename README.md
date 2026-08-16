@@ -1,7 +1,7 @@
 # Real-Time Demand & Risk Intelligence Engine
 
-> **Project Stage**: Phase 5 — Predictive Risk & Prescriptive Replenishment Engine  
-> **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, time-series forecasting, and operational risk intelligence. Serving REST APIs and the interactive Streamlit planner dashboard will be built in Phase 6.
+> **Project Stage**: Phase 6 — Enterprise API & Decision Intelligence Dashboard (Production-Grade End-to-End System)  
+> **Notice**: This repository is a realistic synthetic enterprise work-sample showcasing production-grade data modeling, analytics engineering, multi-horizon demand forecasting, operational risk intelligence, and interactive decision support.
 
 ---
 
@@ -37,7 +37,7 @@ The system answers four fundamental operational questions:
 
 ---
 
-## 4. Planned End-to-End Workflow
+## 4. End-to-End System Architecture
 
 ```
 [ Deterministic Synthetic Enterprise Data (Seed 42) ]
@@ -56,12 +56,12 @@ The system answers four fundamental operational questions:
                       ↓
 [ Prescriptive Replenishment Engine (Supplier POs & DC Transfers) ]
                       ↓
-[ Serving API & Planner Dashboard ]
+[ FastAPI REST API Service ]  ←→  [ Interactive Streamlit Dashboard ]
 ```
 
 ---
 
-## 5. Current Status & Phased Roadmap
+## 5. Phased Roadmap & Completed Milestones
 
 | Phase | Milestone | Scope | Status |
 | :---: | :--- | :--- | :---: |
@@ -71,47 +71,61 @@ The system answers four fundamental operational questions:
 | **3** | **SQL & Statistical Analytics** | ABC/XYZ 9-cell segmentation, supplier OTIF scorecards, Days-of-Supply, 5-tier risk taxonomy. | **Complete** |
 | **4** | **Forecasting Engine** | Multi-horizon demand forecasting (7d, 14d, 30d), strict chronological splits, LightGBM vs. Baselines. | **Complete** |
 | **5** | **Risk & Recommendation Engine** | Daily simulation, tiered safety stock ($Z=2.05$), root-cause attribution, POs & DC transfers. | **Complete** |
-| **6** | **Serving & Presentation** | REST API endpoints, interactive planner dashboard, and scenario-testing UI. | Planned |
+| **6** | **Serving & Presentation** | FastAPI REST endpoints, OpenAPI schemas, and interactive Streamlit planner dashboard. | **Complete** |
 
 ---
 
-## 6. Predictive Risk & Prescriptive Replenishment Engine (Phase 5)
+## 6. REST API Service & Endpoints
 
-Phase 5 turns multi-horizon demand forecasts into actionable, prioritized supply chain recommendations across 75 active node positions:
+The API is built on **FastAPI** and provides typed, deterministic operational queries:
 
-### A. Daily Inventory Balance & Runout Simulation
-- **Balance Equation**: $\text{Stock}_t = \text{Stock}_{t-1} + \text{InboundDeliveries}_t - \hat{D}_t$
-- **30-Day Forecast Integration**: Consumes daily point forecasts directly; projects trailing-7-day forecast average for extended horizons ($30 < DTR \le 180$).
-- **Runout Horizon Breakdown (As of 2026-12-31)**:
-  - `WITHIN_30D`: **65 nodes**
-  - `BEYOND_30D_PROJECTION`: **10 nodes** (slow-moving catalogue items & large stock buffers)
+| Method | Endpoint | Description | Query Parameters |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Service health, version, database connectivity, and reference date. | None |
+| `GET` | `/summary` | High-level executive KPIs across network inventory, risks, and forecasts. | None |
+| `GET` | `/forecast` | Daily point demand forecasts from champion LightGBM model. | `location_id`, `product_id`, `horizon_days` |
+| `GET` | `/risk` | Predictive stockout risk scores, days-to-runout, and root causes. | `location_id`, `product_id`, `risk_tier` |
+| `GET` | `/inventory` | Baseline inventory positions, 30-day demand averages, and Days-of-Supply. | `location_id`, `product_id` |
+| `GET` | `/recommendations` | Prescriptive replenishment recommendations (DC transfers & POs). | `location_id`, `product_id`, `action_type`, `priority_tier` |
+| `GET` | `/docs` | Interactive Swagger / OpenAPI documentation UI. | None |
 
-### B. Statistical Safety Stock ($SS$) & Reorder Point ($ROP$)
-$$SS = Z_{\text{SL}} \times \sqrt{LT \times \sigma_D^2 + D_{\text{avg}}^2 \times \sigma_{LT}^2}$$
-- **Tiered Service Levels**: Class A = 98% ($Z=2.05$), Class B = 95% ($Z=1.65$), Class C = 90% ($Z=1.28$).
-- **Dynamic ROP**: $ROP = \sum_{t=1}^{LT} \hat{D}_t + SS$.
-
-### C. Stockout Risk Tiers & Severity Scoring
-- **Stockout Risk Score ($SRS$)**: $\min(100.0, \max(0.0, (1 - DTR/LT) \times 100))$.
-- **CRITICAL** ($DTR \le LT$): **26 nodes** (Average $DTR = 1.94\text{ days}$, Average $SRS = 71.95$)
-- **HIGH** ($LT < DTR \le 1.5 \times LT$): **8 nodes**
-- **MEDIUM** ($1.5 \times LT < DTR \le 2.0 \times LT$): **8 nodes**
-- **LOW** ($DTR > 2.0 \times LT$): **33 nodes**
-
-### D. Deterministic Root-Cause Attribution
-- `NOMINAL_STABLE`: **34 nodes** (adequate buffer coverage)
-- `INSUFFICIENT_SAFETY_BUFFER`: **27 nodes** (lead-time/demand variance exceeded buffer)
-- `UNDER_REPLENISHED`: **7 nodes** (inventory position breached ROP with 0 in-transit POs)
-- `SLOW_MOVING_DRAG`: **7 nodes** (Class Z intermittent excess stock)
-
-### E. Prescriptive Action Recommendations (48 Action Items Generated)
-- **DC Transfers (`DC_TRANSFER`)**: **12 actions** (10 URGENT, 2 HIGH). Expedited 2-day transit from Central DC (`LOC-DC-01`) resolving critical store stockouts without vendor lead-time delay.
-- **Supplier Purchase Orders (`PURCHASE_ORDER`)**: **29 actions** (14 URGENT, 4 HIGH, 11 MEDIUM). Sized to target level $S = ROP + 14 \times D_{\text{avg}}$.
-- **Excess Holding Actions (`HOLD_ORDER`)**: **7 actions** (LOW). Pausing replenishment on excess long-tail inventory to mitigate working capital lockup.
+### Representative Response (`GET /summary`)
+```json
+{
+  "as_of_date": "2026-12-31",
+  "total_locations": 5,
+  "total_products": 15,
+  "total_node_positions": 75,
+  "critical_stockout_risks": 26,
+  "high_stockout_risks": 8,
+  "medium_stockout_risks": 8,
+  "low_stockout_risks": 33,
+  "total_capital_at_risk": 5149.75,
+  "total_annual_holding_cost": 1029.95,
+  "champion_model_name": "LightGBM",
+  "champion_model_wape": 0.1097,
+  "total_recommendations": 48,
+  "dc_transfer_recommendations": 12,
+  "purchase_order_recommendations": 29,
+  "hold_order_recommendations": 7,
+  "urgent_priority_recommendations": 24
+}
+```
 
 ---
 
-## 7. Project Foundation & Structure
+## 7. Interactive Decision Intelligence Dashboard
+
+The **Streamlit** dashboard (`src/ui/app.py`) provides an interactive operational interface across 5 core views:
+1. **📊 Executive Overview**: Real-time KPI summary cards, stockout vs. excess distribution charts, and top urgent action alerts.
+2. **📈 Forecast Explorer**: Interactive time-series visualizer comparing true customer demand against LightGBM multi-horizon forecasts with horizon sliders and error metrics.
+3. **🚨 Risk Explorer**: 75-node operational risk grid with multi-tier filters and deterministic root-cause breakdown.
+4. **📋 Recommendation Center**: Prioritized action cards for expedited DC lateral transfers (2-day transit) and supplier purchase orders with full mathematical context and decision rationale.
+5. **🔍 SKU Drill-Down**: Facility-specific daily balance simulation showing step-by-step buffer erosion, inbound deliveries, and exact runout date.
+
+---
+
+## 8. Project Structure
 
 ```
 real-time-demand-risk-engine/
@@ -129,6 +143,12 @@ real-time-demand-risk-engine/
 │   │   ├── marts.py            # Unified analytical data marts builder
 │   │   ├── segmentation.py     # ABC / XYZ / ABC-XYZ matrix calculation
 │   │   └── supplier.py         # Supplier scorecards, OTIF, and lead-time variance
+│   ├── api/               # FastAPI REST service and schemas
+│   │   ├── __init__.py
+│   │   ├── main.py             # Application entrypoint & CORS middleware
+│   │   ├── routes.py           # REST endpoints
+│   │   ├── schemas.py          # Pydantic request/response models
+│   │   └── service.py          # Cached IntelligenceService manager
 │   ├── config/            # Environment and engine configurations
 │   │   ├── __init__.py
 │   │   └── settings.py
@@ -148,15 +168,20 @@ real-time-demand-risk-engine/
 │   ├── models/            # Pydantic validation contracts and domain entities
 │   │   ├── __init__.py
 │   │   └── contracts.py
-│   └── risk/              # Predictive risk and prescriptive replenishment engine
+│   ├── risk/              # Predictive risk and prescriptive replenishment engine
+│   │   ├── __init__.py
+│   │   ├── attribution.py     # Deterministic 6-category root-cause attribution
+│   │   ├── recommendations.py # Prescriptive PO and DC-to-Store transfer generator
+│   │   ├── risk_scoring.py    # 0-100 stockout risk score & capital-at-risk
+│   │   ├── safety_stock.py    # Multi-tier ABC safety stock & ROP calculator
+│   │   └── simulation.py      # Daily inventory discrete balance & runout engine
+│   └── ui/                # Streamlit Decision Intelligence Dashboard
 │       ├── __init__.py
-│       ├── attribution.py     # Deterministic 6-category root-cause attribution
-│       ├── recommendations.py # Prescriptive PO and DC-to-Store transfer generator
-│       ├── risk_scoring.py    # 0-100 stockout risk score & capital-at-risk
-│       ├── safety_stock.py    # Multi-tier ABC safety stock & ROP calculator
-│       └── simulation.py      # Daily inventory discrete balance & runout engine
+│       └── app.py         # Multi-page interactive dashboard
 └── tests/
-    ├── unit/              # Config, contract, generator, quality, analytics, forecasting, risk
+    ├── unit/              # Config, contract, generator, quality, analytics, forecasting, risk, api
+    │   ├── test_api_schemas.py
+    │   ├── test_api_service.py
     │   ├── test_attribution.py
     │   ├── test_baselines.py
     │   ├── test_config.py
@@ -174,27 +199,35 @@ real-time-demand-risk-engine/
     │   ├── test_simulation.py
     │   ├── test_splits.py
     │   └── test_supplier_analytics.py
-    └── integration/       # DDL, generation, ingestion, marts, forecasting, risk pipeline
+    └── integration/       # DDL, generation, ingestion, marts, forecasting, risk, api, ui smoke
         ├── test_analytical_marts.py
+        ├── test_api_endpoints.py
         ├── test_data_generation.py
         ├── test_forecasting_pipeline.py
         ├── test_ingestion.py
         ├── test_risk_and_prescriptive_pipeline.py
-        └── test_schema_ddl.py
+        ├── test_schema_ddl.py
+        └── test_ui_smoke.py
 ```
 
 ---
 
-## 8. Getting Started & Verification
+## 9. Getting Started & Verification
 
 ### Prerequisites
 - Python 3.10+
 
-### Run Full Pipeline & Test Suite (94 Tests)
+### Quick Start Commands
 ```bash
 # 1. Ingest clean data and seed SQLite database
 python -m src.data.ingestion
 
-# 2. Execute complete test suite (94 tests)
+# 2. Run complete test suite (109 tests)
 python -m pytest
+
+# 3. Launch FastAPI REST Service
+uvicorn src.api.main:app --reload --port 8000
+
+# 4. Launch Streamlit Decision Intelligence Dashboard
+streamlit run src/ui/app.py
 ```

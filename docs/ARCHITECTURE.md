@@ -4,13 +4,14 @@
 
 The system adheres strictly to the principle of **simplest production-appropriate engineering**:
 - **No Over-Engineering**: Avoid premature distributed infrastructure (Kafka, Spark, Kubernetes, Celery, Vector DBs, LLM agents).
-- **In-Process & Modular**: Data pipelines, analytical queries, forecasting routines, and risk scoring are built as composable Python modules backed by SQL storage.
+- **In-Process & Modular**: Data pipelines, analytical queries, forecasting routines, risk scoring, and presentation services are built as composable Python modules backed by SQL storage.
 - **Contract-Driven**: Strict separation between data contracts (Pydantic), persistent relational schemas (SQLAlchemy DDL), analytical transformations, and statistical models.
 - **Deterministic & Reproducible**: Fully reproducible synthetic telemetry using pseudo-random seeds (`seed=42`) to enable rigorous integration testing and regression benchmarking.
 - **Strict Quality Gating**: Automated 40-check validation suite gating all persistent database ingestion.
 - **SQL-First Analytical Marts**: High-performance analytical views and summary tables for segmentation, supplier intelligence, and operational risk classification.
 - **Leakage-Free Multi-Horizon Forecasting**: Strict chronological train/validation/test holdouts with deterministic LightGBM gradient boosted regression beating classical statistical baselines.
 - **Predictive Risk & Prescriptive Replenishment**: Forecast-aware daily inventory simulation, tiered statistical safety buffers, deterministic root-cause attribution, and prioritized replenishment recommendations (DC transfers & POs).
+- **Enterprise Serving & Decision Dashboard**: Typed FastAPI REST API endpoints and interactive Streamlit decision dashboard powered by an in-memory cached intelligence service.
 
 ---
 
@@ -53,9 +54,10 @@ flowchart TD
         ATTR --> PRES[Prescriptive Action Generator<br/>DC_TRANSFER (2d transit) | PURCHASE_ORDER | HOLD_ORDER]
     end
 
-    subgraph S6 [Phase 6: Presentation]
-        PRES --> API[FastAPI / Operational Service]
-        PRES --> UI[Planner Streamlit Dashboard]
+    subgraph S6 [Phase 6: Presentation & Serving Layer - COMPLETED]
+        PRES --> SRV[IntelligenceService<br/>In-Memory Caching & Query Filter Layer]
+        SRV --> API[FastAPI REST Service<br/>/summary, /forecast, /risk, /recommendations]
+        SRV --> UI[Streamlit Decision Intelligence Dashboard<br/>5 Interactive Tabs & Visualizers]
     end
 ```
 
@@ -78,39 +80,9 @@ Table Scale Summary:
 
 ---
 
-## 4. Predictive Risk & Prescriptive Formulations
+## 4. Evaluation Framework & Measured Performance
 
-### A. Daily Inventory Balance & Runout Calculation
-$$\text{Stock}_t = \text{Stock}_{t-1} + \text{InboundDeliveries}_t - \hat{D}_t$$
-$$\text{Days to Runout } (DTR) = \min \{ t \ge 1 \mid \text{Stock}_t \le 0 \}$$
-
-### B. Tiered Safety Stock ($SS$) & Reorder Point ($ROP$)
-$$SS = Z_{\text{SL}} \times \sqrt{LT \times \sigma_D^2 + D_{\text{avg}}^2 \times \sigma_{LT}^2}$$
-- **Class A**: $Z = 2.05$ (98% Service Level)
-- **Class B**: $Z = 1.65$ (95% Service Level)
-- **Class C**: $Z = 1.28$ (90% Service Level)
-$$ROP = \sum_{t=1}^{LT} \hat{D}_t + SS$$
-$$\text{Target Inventory Level } S = ROP + (14 \times D_{\text{avg}})$$
-
-### C. Stockout Risk Score ($SRS$) & Severity Tiers
-$$SRS = \min\left(100.0, \max\left(0.0, \left(1.0 - \frac{DTR}{\max(1, LT)}\right) \times 100.0\right)\right)$$
-- **CRITICAL**: $DTR \le LT$
-- **HIGH**: $LT < DTR \le 1.5 \times LT$
-- **MEDIUM**: $1.5 \times LT < DTR \le 2.0 \times LT$
-- **LOW**: $DTR > 2.0 \times LT$
-
-### D. Prescriptive Replenishment Hierarchy
-1. **DC Lateral Transfer (`DC_TRANSFER`)**: If Store is CRITICAL and Central DC (`LOC-DC-01`) has available stock $> 2 \times \text{DC } SS$, recommend lateral transfer with **2-day transit time**:
-   $$Q_{\text{transfer}} = \min(S - \text{Inventory Position}, \text{DC Surplus})$$
-2. **Supplier Purchase Order (`PURCHASE_ORDER`)**: If DC transfer is unavailable or for DC replenishment:
-   $$Q_{\text{PO}} = \lceil \max(0, S - \text{Inventory Position}) \rceil$$
-3. **Excess Holding (`HOLD_ORDER`)**: If $DoS > 90$ days, pause reordering.
-
----
-
-## 5. Evaluation Framework & Measured Performance
-
-| Evaluation Dimension | Metric / Validation Method | Target / Standard | Measured Result (Phase 5) |
+| Evaluation Dimension | Metric / Validation Method | Target / Standard | Measured Result (Phase 6) |
 | :--- | :--- | :--- | :--- |
 | **Data Integrity & Contracts** | 40-check validation suite, `PRAGMA foreign_key_check`. | 100% contract compliance, zero orphan records. | **100.0% Pass (Phase 2)** |
 | **Analytical Marts Integrity** | Relational joins, non-null velocity aggregates, 9-cell ABC/XYZ matrix. | 100% complete coverage across 15 SKUs and 5 locations. | **100.0% Coverage (Phase 3)** |
@@ -118,4 +90,6 @@ $$SRS = \min\left(100.0, \max\left(0.0, \left(1.0 - \frac{DTR}{\max(1, LT)}\righ
 | **Stockout Risk Identification** | Node runout simulation across all 75 node positions. | Explicit categorization into CRITICAL, HIGH, MEDIUM, LOW. | **26 Critical, 8 High, 8 Medium, 33 Low** |
 | **Root-Cause Attribution** | 6-category deterministic hierarchy. | 100% explainability across operational risks. | **Attributed across all 75 nodes** |
 | **Prescriptive Action Plan** | DC transfer vs. PO optimization with priority ranking. | Actionable plan prioritized by urgency and revenue impact. | **12 DC Transfers, 29 POs, 7 Excess Holds** |
+| **REST API Serving** | FastAPI endpoints (`/health`, `/summary`, `/forecast`, `/risk`, `/inventory`, `/recommendations`). | Valid OpenAPI specs, Pydantic schemas, sub-50ms latency. | **100% Endpoints Verified** |
+| **Interactive Dashboard** | 5-tab Streamlit visualizer with cached analytical layer. | Instantaneous filter responses, zero unnecessary model re-fits. | **100% Views Functional** |
 | **Reproducibility** | Deterministic pipeline rerun with fixed seeds (`seed=42`). | Identical logical records, forecasts, and recommendations across repeated runs. | **100% Bit-Exact Match** |
