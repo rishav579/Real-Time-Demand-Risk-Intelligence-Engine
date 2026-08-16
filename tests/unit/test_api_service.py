@@ -3,6 +3,7 @@
 from datetime import date
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 from src.api.service import IntelligenceService
 from src.data.generator import DataGenerator
@@ -12,7 +13,12 @@ from src.data.ingestion import ingest_dataset
 @pytest.fixture(scope="module")
 def populated_service():
     """Create initialized IntelligenceService backed by in-memory database."""
-    engine = create_engine("sqlite:///:memory:", echo=False)
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False,
+    )
     generator = DataGenerator(seed=42)
     dataset = generator.generate(start_date=date(2026, 1, 1), num_days=365)
     ingest_dataset(dataset=dataset, engine=engine, strict=True, recreate_tables=True)
@@ -65,3 +71,29 @@ def test_service_recommendation_filtering(populated_service):
     urgent_recs = populated_service.get_recommendations(priority_tier="URGENT")
     assert len(urgent_recs) > 0
     assert (urgent_recs["priority_tier"] == "URGENT").all()
+
+
+def test_service_concurrent_thread_safe_initialization():
+    """Verify concurrent threads do not cause duplicate training or race conditions."""
+    import concurrent.futures
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False,
+    )
+    generator = DataGenerator(seed=42)
+    dataset = generator.generate(start_date=date(2026, 1, 1), num_days=365)
+    ingest_dataset(dataset=dataset, engine=engine, strict=True, recreate_tables=True)
+
+    service = IntelligenceService(engine=engine, as_of_date=date(2026, 12, 31))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(service.initialize) for _ in range(6)]
+        for f in futures:
+            f.result()
+
+    assert service._initialized is True
+    assert service._risk_nodes_df is not None
+    assert len(service._risk_nodes_df) == 75

@@ -1,6 +1,7 @@
 """Central intelligence service providing cached analytical access for APIs and UI."""
 
 from datetime import date
+import threading
 from typing import Dict, List, Optional, Set
 import pandas as pd
 from sqlalchemy import create_engine
@@ -26,6 +27,9 @@ class IntelligenceService:
         self.engine = engine or create_engine(settings.database_url, echo=False)
         self.as_of_date = as_of_date or date(2026, 12, 31)
 
+        # Thread synchronization lock
+        self._lock = threading.Lock()
+
         # Cache storage
         self._marts: Optional[Dict[str, pd.DataFrame]] = None
         self._forecasts_df: Optional[pd.DataFrame] = None
@@ -36,37 +40,42 @@ class IntelligenceService:
         self._initialized: bool = False
 
     def initialize(self, force_refresh: bool = False) -> None:
-        """Compute and populate in-memory intelligence state from database."""
+        """Compute and populate in-memory intelligence state from database with thread safety."""
         if self._initialized and not force_refresh:
             return
 
-        # 1. Build Analytical Marts
-        self._marts = build_all_marts(self.engine, as_of_date=self.as_of_date, persist_to_db=True)
+        with self._lock:
+            # Double-checked locking to avoid redundant computation across concurrent workers
+            if self._initialized and not force_refresh:
+                return
 
-        # 2. Train Champion Forecasting Model & Generate Forecasts
-        feat_df = build_forecasting_dataset(self.engine)
-        train_df, val_df, test_df = create_temporal_splits(feat_df)
-        forecaster = LightGBMDemandForecaster(random_state=42).fit(train_df, val_df)
-        self._forecasts_df = forecaster.predict(test_df, horizon_days=30)
+            # 1. Build Analytical Marts
+            self._marts = build_all_marts(self.engine, as_of_date=self.as_of_date, persist_to_db=True)
 
-        # 3. Simulate Runout, Safety Stock, Risk Scoring, and Attribution
-        sim_df = simulate_network_runout(
-            engine=self.engine,
-            predictions_df=self._forecasts_df,
-            as_of_date=self.as_of_date,
-        )
-        rop_df = compute_node_reorder_points(sim_df, engine=self.engine)
-        risk_scored_df = compute_risk_scoring(rop_df)
-        self._risk_nodes_df = compute_root_cause_attribution(risk_scored_df)
+            # 2. Train Champion Forecasting Model & Generate Forecasts
+            feat_df = build_forecasting_dataset(self.engine)
+            train_df, val_df, test_df = create_temporal_splits(feat_df)
+            forecaster = LightGBMDemandForecaster(random_state=42).fit(train_df, val_df)
+            self._forecasts_df = forecaster.predict(test_df, horizon_days=30)
 
-        # 4. Generate Prescriptive Action Recommendations
-        self._recommendations_df = generate_prescriptive_recommendations(self._risk_nodes_df)
+            # 3. Simulate Runout, Safety Stock, Risk Scoring, and Attribution
+            sim_df = simulate_network_runout(
+                engine=self.engine,
+                predictions_df=self._forecasts_df,
+                as_of_date=self.as_of_date,
+            )
+            rop_df = compute_node_reorder_points(sim_df, engine=self.engine)
+            risk_scored_df = compute_risk_scoring(rop_df)
+            self._risk_nodes_df = compute_root_cause_attribution(risk_scored_df)
 
-        # Cache entity sets for fast validation
-        self._known_locations = set(self._risk_nodes_df["location_id"].unique())
-        self._known_products = set(self._risk_nodes_df["product_id"].unique())
+            # 4. Generate Prescriptive Action Recommendations
+            self._recommendations_df = generate_prescriptive_recommendations(self._risk_nodes_df)
 
-        self._initialized = True
+            # Cache entity sets for fast validation
+            self._known_locations = set(self._risk_nodes_df["location_id"].unique())
+            self._known_products = set(self._risk_nodes_df["product_id"].unique())
+
+            self._initialized = True
 
     def is_valid_location(self, location_id: str) -> bool:
         """Check if location identifier exists in network catalog."""
@@ -187,19 +196,23 @@ class IntelligenceService:
         return df
 
 
-# Global singleton instance
+# Global singleton instance & lock
 _service_instance: Optional[IntelligenceService] = None
+_service_lock = threading.Lock()
 
 
 def get_intelligence_service() -> IntelligenceService:
-    """FastAPI dependency to retrieve global IntelligenceService singleton."""
+    """FastAPI dependency to retrieve global IntelligenceService singleton with thread-safe instantiation."""
     global _service_instance
     if _service_instance is None:
-        _service_instance = IntelligenceService()
+        with _service_lock:
+            if _service_instance is None:
+                _service_instance = IntelligenceService()
     return _service_instance
 
 
 def set_intelligence_service(service: IntelligenceService) -> None:
     """Set global IntelligenceService instance (used for testing overrides)."""
     global _service_instance
-    _service_instance = service
+    with _service_lock:
+        _service_instance = service

@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Literal
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -71,6 +71,14 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def enforce_production_security_defaults(self) -> "Settings":
+        """In production environment, ensure auth_enabled is strictly active by default."""
+        if self.environment == "production":
+            # If user did not explicitly disable auth via env/dict, enforce True
+            object.__setattr__(self, "auth_enabled", True)
+        return self
 
 
 @lru_cache()

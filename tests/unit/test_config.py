@@ -29,3 +29,10 @@ def test_settings_custom_override():
     assert custom.default_service_level == 0.98
     assert custom.default_lead_time_days == 10
     assert custom.forecast_horizon_days == 30
+
+
+def test_settings_production_enforces_auth_default():
+    """Verify that in production environment, auth_enabled automatically defaults to True."""
+    prod = Settings(environment="production")
+    assert prod.environment == "production"
+    assert prod.auth_enabled is True
