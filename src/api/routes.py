@@ -4,6 +4,7 @@ from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from src.api.auth import verify_api_key
 from src.api.schemas import (
     ExecutiveSummaryResponse,
     ForecastItemResponse,
@@ -24,11 +25,11 @@ router = APIRouter()
 @router.get(
     "/health",
     response_model=HealthResponse,
-    summary="Service Health Check",
+    summary="Service Health & Liveness Check",
     tags=["System"],
 )
 def get_health(service: IntelligenceService = Depends(get_intelligence_service)) -> HealthResponse:
-    """Verify API availability, engine version, database connectivity, and analysis reference date."""
+    """Verify API availability, engine version, database connectivity, and analysis reference date (Public)."""
     try:
         service.initialize()
         return HealthResponse(
@@ -49,6 +50,7 @@ def get_health(service: IntelligenceService = Depends(get_intelligence_service))
     response_model=ExecutiveSummaryResponse,
     summary="Executive Intelligence KPI Summary",
     tags=["Executive Overview"],
+    dependencies=[Depends(verify_api_key)],
 )
 def get_executive_summary(
     service: IntelligenceService = Depends(get_intelligence_service),
@@ -63,6 +65,7 @@ def get_executive_summary(
     response_model=ForecastResponse,
     summary="Multi-Horizon Demand Forecasts",
     tags=["Forecasting"],
+    dependencies=[Depends(verify_api_key)],
 )
 def get_forecasts(
     location_id: Optional[str] = Query(None, description="Optional facility ID (e.g. LOC-ST-01)"),
@@ -94,6 +97,7 @@ def get_forecasts(
     response_model=RiskResponse,
     summary="Predictive Stockout & Excess Inventory Risks",
     tags=["Risk Intelligence"],
+    dependencies=[Depends(verify_api_key)],
 )
 def get_risk_positions(
     location_id: Optional[str] = Query(None, description="Optional facility ID (e.g. LOC-ST-01)"),
@@ -136,6 +140,7 @@ def get_risk_positions(
     response_model=InventoryResponse,
     summary="Inventory Health Positions",
     tags=["Inventory Health"],
+    dependencies=[Depends(verify_api_key)],
 )
 def get_inventory_health(
     location_id: Optional[str] = Query(None, description="Optional facility ID filter"),
@@ -161,6 +166,7 @@ def get_inventory_health(
     response_model=RecommendationResponse,
     summary="Prescriptive Replenishment Actions",
     tags=["Prescriptive Recommendations"],
+    dependencies=[Depends(verify_api_key)],
 )
 def get_recommendations(
     location_id: Optional[str] = Query(None, description="Optional facility ID filter"),

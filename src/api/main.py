@@ -1,13 +1,23 @@
 """FastAPI main application entrypoint for Demand & Risk Intelligence Engine."""
 
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import router
+from src.config.settings import get_settings
 
 
 def create_app() -> FastAPI:
     """Construct and configure the FastAPI application."""
+    settings = get_settings()
+
+    # Configure root logging level
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper(), logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
     app = FastAPI(
         title="Real-Time Demand & Risk Intelligence Engine API",
         description=(
@@ -15,7 +25,7 @@ def create_app() -> FastAPI:
             "predictive stockout and excess risk scoring, deterministic root-cause attribution, "
             "and prescriptive replenishment recommendations."
         ),
-        version="1.0.0",
+        version=settings.app_version,
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
@@ -23,7 +33,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

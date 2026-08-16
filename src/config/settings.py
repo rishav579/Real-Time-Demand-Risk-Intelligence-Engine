@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import List, Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,8 +12,23 @@ class Settings(BaseSettings):
 
     # Project metadata
     app_name: str = "Real-Time Demand & Risk Intelligence Engine"
-    app_version: str = "0.1.0"
+    app_version: str = "1.0.0"
     environment: Literal["development", "testing", "production"] = "development"
+    log_level: str = Field(default="INFO", description="Logging level")
+
+    # Security & Authentication
+    auth_enabled: bool = Field(
+        default=False,
+        description="Whether to enforce API key authentication on protected endpoints",
+    )
+    api_key: str = Field(
+        default="dr-prod-secret-key-42",
+        description="Static API key for service-to-service authentication",
+    )
+    allowed_origins: List[str] = Field(
+        default=["*"],
+        description="Allowed CORS origin domains",
+    )
 
     # Reproducibility & Random Seed
     random_seed: int = 42

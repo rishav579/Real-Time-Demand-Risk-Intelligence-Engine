@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 
 from src.api.main import create_app
 from src.api.service import IntelligenceService, get_intelligence_service
+from src.config.settings import Settings, get_settings
 from src.data.generator import DataGenerator
 from src.data.ingestion import ingest_dataset
 
@@ -108,3 +109,30 @@ def test_prefixed_api_routes(api_client):
     resp = api_client.get("/api/v1/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "healthy"
+
+
+def test_auth_enforcement_on_protected_endpoints(monkeypatch, api_client):
+    """Verify that when auth_enabled=True, unauthenticated requests fail with 401 and valid key succeeds."""
+    # Temporarily enable authentication in settings
+    monkeypatch.setattr(
+        "src.api.auth.get_settings",
+        lambda: Settings(auth_enabled=True, api_key="secret-api-key-123"),
+    )
+
+    # 1. Health remains public
+    health_resp = api_client.get("/health")
+    assert health_resp.status_code == 200
+
+    # 2. Protected endpoint without header returns 401
+    unauth_resp = api_client.get("/summary")
+    assert unauth_resp.status_code == 401
+    assert "Invalid or missing API key" in unauth_resp.json()["detail"]
+
+    # 3. Protected endpoint with invalid header returns 401
+    invalid_resp = api_client.get("/summary", headers={"X-API-Key": "wrong-key"})
+    assert invalid_resp.status_code == 401
+
+    # 4. Protected endpoint with valid header returns 200 OK
+    valid_resp = api_client.get("/summary", headers={"X-API-Key": "secret-api-key-123"})
+    assert valid_resp.status_code == 200
+    assert valid_resp.json()["total_node_positions"] == 75
