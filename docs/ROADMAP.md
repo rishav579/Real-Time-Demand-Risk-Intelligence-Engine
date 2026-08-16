@@ -107,3 +107,15 @@
   - Recommendation Center with expandable decision rationale and audit trails.
   - SKU & Facility Drill-Down showing step-by-step balance simulation and runout dates.
 - [x] Complete unit, API integration, and UI smoke test suite (**109/109 tests passing**).
+
+---
+
+## Phase 7: Production Readiness & Security Hardening (Completed)
+- [x] Implement API Key authentication security dependency (`src/api/auth.py`) protecting sensitive endpoints with `X-API-Key` headers.
+- [x] Configure environment-driven CORS policy in `src/api/main.py` using `Settings.allowed_origins`.
+- [x] Add container orchestration health checks (`liveness`, `readiness`) to `/health` endpoint and schema.
+- [x] Create `.env.example` documenting all configuration parameters, environment overrides, and secret conventions.
+- [x] Optimize DC surplus allocation prioritization so high-urgency Class A retail nodes claim limited Central DC stock before lower-value nodes.
+- [x] Add entity validation in FastAPI routes returning standard HTTP 404 for unknown location and product query parameters.
+- [x] Normalize SQLite query date parameters to ISO strings to eliminate Python 3.12+ date adapter deprecation warnings.
+- [x] Complete security and regression test suite (**117/117 tests passing**).

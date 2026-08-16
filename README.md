@@ -1,6 +1,6 @@
 # Real-Time Demand & Risk Intelligence Engine
 
-> **Project Stage**: Phase 6 — Enterprise API & Decision Intelligence Dashboard (Production-Grade End-to-End System)  
+> **Project Stage**: Phase 7 — Production Readiness & Security Hardening (Complete Production-Grade Decision Engine)  
 > **Notice**: This repository is a realistic synthetic enterprise work-sample showcasing production-grade data modeling, analytics engineering, multi-horizon demand forecasting, operational risk intelligence, and interactive decision support.
 
 ---
@@ -72,6 +72,7 @@ The system answers four fundamental operational questions:
 | **4** | **Forecasting Engine** | Multi-horizon demand forecasting (7d, 14d, 30d), strict chronological splits, LightGBM vs. Baselines. | **Complete** |
 | **5** | **Risk & Recommendation Engine** | Daily simulation, tiered safety stock ($Z=2.05$), root-cause attribution, POs & DC transfers. | **Complete** |
 | **6** | **Serving & Presentation** | FastAPI REST endpoints, OpenAPI schemas, and interactive Streamlit planner dashboard. | **Complete** |
+| **7** | **Production Hardening & Security** | API Key authentication, environment CORS, container health probes, and structured logging. | **Complete** |
 
 ---
 
@@ -222,7 +223,7 @@ real-time-demand-risk-engine/
 # 1. Ingest clean data and seed SQLite database
 python -m src.data.ingestion
 
-# 2. Run complete test suite (109 tests)
+# 2. Run complete test suite (117 tests)
 python -m pytest
 
 # 3. Launch FastAPI REST Service

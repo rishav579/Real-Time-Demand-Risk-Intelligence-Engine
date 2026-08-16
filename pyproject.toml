@@ -37,4 +37,5 @@ python_functions = ["test_*"]
 addopts = "-v --strict-markers"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["src*"]
