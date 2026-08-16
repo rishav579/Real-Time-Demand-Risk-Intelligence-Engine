@@ -1,6 +1,6 @@
 # Real-Time Demand & Risk Intelligence Engine
 
-> **Project Stage**: Phase 1 — Deterministic Synthetic Enterprise Data Engine  
+> **Project Stage**: Phase 2 — Data Quality & Ingestion Validation  
 > **Notice**: This repository is a realistic synthetic enterprise work-sample designed to showcase production-grade data modeling, analytics engineering, forecasting, and operational risk intelligence. Machine learning models, API endpoints, and dashboards will be built in subsequent phases.
 
 ---
@@ -42,9 +42,9 @@ The system answers four fundamental operational questions:
 ```
 [ Deterministic Synthetic Enterprise Data (Seed 42) ]
                       ↓
-[ Relational Schema / Data Contract (SQLAlchemy & Pydantic) ]
-                      ↓
-[ Data Quality & Anomaly Validation Suite ]
+[ Ingestion & Data Quality Validation Layer (40 Integrity Checks) ]
+                      ↓  (PASS / REJECT Gating)
+[ Relational Storage (SQLite with Enforced Foreign Keys) ]
                       ↓
 [ SQL & Exploratory Statistical Analysis ]
                       ↓
@@ -65,7 +65,7 @@ The system answers four fundamental operational questions:
 | :---: | :--- | :--- | :---: |
 | **0** | **Foundation & Data Contract** | Schema design, Pydantic contracts, SQLite/SQLAlchemy DDL, business questions, test suite. | **Complete** |
 | **1** | **Deterministic Data Engine** | Seeded synthetic generator with planted causal patterns (promotions, supplier delays, seasonality). | **Complete** |
-| **2** | **Data Quality & Ingestion** | Schema enforcement, boundary tests, missing data detection, and pipeline orchestration. | Planned |
+| **2** | **Data Quality & Ingestion** | 40-check validation suite, strict ingestion gating, corrupted fixture detectors, pipeline runner. | **Complete** |
 | **3** | **SQL & Statistical Analytics** | Analytical marts, velocity tiering (ABC/XYZ), inventory turnover, supplier scorecard. | Planned |
 | **4** | **Forecasting Engine** | Baseline moving averages, exponential smoothing, and gradient-boosted time-series forecasting. | Planned |
 | **5** | **Risk & Recommendation Engine** | Days-of-supply simulation, stockout risk scoring, reorder/rebalancing recommendation logic. | Planned |
@@ -73,29 +73,31 @@ The system answers four fundamental operational questions:
 
 ---
 
-## 6. Synthetic Data Engine & Planted Signals
+## 6. Data Quality & Ingestion Layer
 
-The dataset is generated deterministically using a fixed pseudo-random seed (`seed=42`) spanning **365 calendar days** across **15 SKUs**, **5 facilities** (1 DC, 4 stores), and **4 suppliers** (~52,050 rows total):
+The dataset undergoes **40 deterministic validation checks** before any record is committed to persistent storage. If any critical integrity rule fails, database writes are strictly blocked (`DataQualityError`).
 
+### Validation Summary (Seed 42 Dataset)
 ```
-Table Row Counts:
-  calendar_dim         :    365 rows
-  products             :     15 rows
-  locations            :      5 rows
-  suppliers            :      4 rows
-  promotions           :      3 rows
-  sales_transactions   : 21,900 rows
-  inventory_snapshots  : 27,375 rows
-  supplier_deliveries  :  2,388 rows
+================================================================================
+ DATA QUALITY & CONTRACT VALIDATION REPORT
+================================================================================
+ Overall Status : PASS
+ Ingestable     : YES (Ready for Storage)
+ Pass Rate      : 100.0% (40/40 checks passed)
+ Failed Checks  : 0
+ Warnings       : 0
+--------------------------------------------------------------------------------
+Category               | Checks | Status | Enforced Rule Highlights
+--------------------------------------------------------------------------------
+Table Sanity           |   8    |  PASS  | Non-empty dimension & fact tables
+Uniqueness             |  12    |  PASS  | PKs & Composite keys strictly unique
+Referential Integrity  |  11    |  PASS  | Zero orphan foreign key records
+Value Ranges           |   4    |  PASS  | Positive prices/costs, non-negative stock
+Date Consistency       |   2    |  PASS  | Chronological order: start<=end, order<=actual
+Business Logic         |   3    |  PASS  | Exact fulfillment arithmetic & stockout flags
+================================================================================
 ```
-
-### Verified Planted Ground Truth Signals
-- **Promotional Demand Lift**: +35.57% verified demand surge during promo windows on target beverage SKU (`PRD-BEV-001`).
-- **Supplier Delivery Delay**: Planted +9 day latency spike on inbound PO (`PO-000907`).
-- **Stockout Crisis Causal Chain**: Surge demand + delayed inbound shipment $\rightarrow$ inventory depletion $\rightarrow$ 8 stockout days with 334 unfulfilled units.
-- **Regional Seasonality**: 1.76x demand multiplier in Southern regions during summer months.
-- **Slow-Moving Capital Drag**: Low-velocity SKUs with high minimum batch sizes generating 428+ days-of-supply.
-- **Stable Baseline Benchmark**: Staple mineral water product (`PRD-BEV-003`) exhibiting zero stockouts and stationary demand.
 
 ---
 
@@ -114,20 +116,24 @@ real-time-demand-risk-engine/
 │   ├── config/            # Environment and engine configurations
 │   │   ├── __init__.py
 │   │   └── settings.py
-│   ├── data/              # Relational schema, DDL, and synthetic data generator
+│   ├── data/              # Schema, generator, quality validator, and ingestion pipeline
 │   │   ├── __init__.py
 │   │   ├── generator.py   # Deterministic data generation engine (Seed 42)
+│   │   ├── ingestion.py   # Ingestion orchestrator and gating policy
+│   │   ├── quality.py     # 40-check data quality validation suite
 │   │   └── schema.py      # SQLAlchemy 2.0 table definitions and DDL
 │   └── models/            # Pydantic validation contracts and domain entities
 │       ├── __init__.py
 │       └── contracts.py
 └── tests/
-    ├── unit/              # Configuration, contract, and generator unit tests
+    ├── unit/              # Configuration, contract, generator, and quality unit tests
     │   ├── test_config.py
     │   ├── test_contracts.py
-    │   └── test_generator.py
-    └── integration/       # DDL and database generation integration tests
+    │   ├── test_generator.py
+    │   └── test_quality.py
+    └── integration/       # DDL, generation, and ingestion pipeline integration tests
         ├── test_data_generation.py
+        ├── test_ingestion.py
         └── test_schema_ddl.py
 ```
 
@@ -138,14 +144,14 @@ real-time-demand-risk-engine/
 ### Prerequisites
 - Python 3.10+
 
-### Generate Synthetic Database
+### Run Data Quality & Ingestion Pipeline
 ```bash
-# Generate deterministic synthetic data and seed local SQLite database
-python -m src.data.generator
+# Generate deterministic synthetic data, validate 40 quality rules, and seed SQLite database
+python -m src.data.ingestion
 ```
 
 ### Run Full Test Suite
 ```bash
-# Execute unit and integration tests (28 tests)
+# Execute unit and integration tests (46 tests)
 python -m pytest
 ```

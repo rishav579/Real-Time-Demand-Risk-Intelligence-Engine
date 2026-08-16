@@ -1,10 +1,23 @@
-"""Data access, schema definition, and synthetic generation package."""
+"""Data access, schema definition, synthetic generation, and quality validation package."""
 
 from src.data.generator import (
     DataGenerator,
     SyntheticDataset,
     run_generation,
     seed_database,
+)
+from src.data.ingestion import (
+    DataQualityError,
+    ingest_dataset,
+    run_ingestion_pipeline,
+)
+from src.data.quality import (
+    CheckSeverity,
+    CheckStatus,
+    DataQualityValidator,
+    QualityCheckResult,
+    QualityReport,
+    validate_dataset,
 )
 from src.data.schema import (
     calendar_dim,
@@ -22,6 +35,7 @@ from src.data.schema import (
 )
 
 __all__ = [
+    # Schema & DDL
     "metadata",
     "get_metadata",
     "create_all_tables",
@@ -34,8 +48,20 @@ __all__ = [
     "sales_transactions",
     "inventory_snapshots",
     "supplier_deliveries",
+    # Generator
     "DataGenerator",
     "SyntheticDataset",
     "seed_database",
     "run_generation",
+    # Quality & Validation
+    "CheckStatus",
+    "CheckSeverity",
+    "QualityCheckResult",
+    "QualityReport",
+    "DataQualityValidator",
+    "validate_dataset",
+    # Ingestion
+    "DataQualityError",
+    "ingest_dataset",
+    "run_ingestion_pipeline",
 ]

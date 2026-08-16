@@ -79,3 +79,17 @@ Implement `DataGenerator` with an explicit instance-level random generator (`sel
 ### Consequences
 - **Positive**: Guaranteed identical logical datasets across different runs and platforms when identical seeds are supplied (`seed=42`). Enables deterministic integration tests and regression benchmarks.
 - **Negative**: All stochastic methods must receive and use the instance RNG explicitly.
+
+---
+
+## ADR 006: Pre-Ingestion Data Quality Gating and Strict Failure Policy
+
+### Context
+Downstream analytical marts and time-series forecasting models produce erratic outputs or silent failures if corrupt records (orphan keys, negative stock, price below cost, or broken fulfillment arithmetic) enter relational storage.
+
+### Decision
+Implement a pre-ingestion validation gate (`DataQualityValidator` and `ingest_dataset`). Ingestion evaluates 40 deterministic checks across uniqueness, referential integrity, ranges, date ordering, and business logic before any SQL `INSERT` is executed. Any failure on critical checks raises `DataQualityError` and blocks database loading completely.
+
+### Consequences
+- **Positive**: Guaranteed pristine data layer for downstream analytics. Corrupted data is caught and attributed at the ingestion boundary rather than deep within forecasting models.
+- **Negative**: Requires maintenance of validation rules aligned with schema evolution.

@@ -27,11 +27,19 @@
 
 ---
 
-## Phase 2: Data Quality & Ingestion Pipeline
-- [ ] Create automated data quality validation suite (schema conformance, range checks, foreign key integrity).
-- [ ] Validate temporal sequence consistency (order_date $\le$ promised_delivery_date $\le$ actual_delivery_date).
-- [ ] Load and index datasets into SQLite / relational storage.
-- [ ] Implement data quality test reports and pipeline run metadata logging.
+## Phase 2: Data Quality & Ingestion Pipeline (Completed)
+- [x] Create automated data quality validation suite (`src/data/quality.py`) with 40 deterministic checks:
+  - Table sanity & non-empty master catalogs (8 checks).
+  - Primary & composite uniqueness enforcement (12 checks).
+  - Referential integrity & orphan key detection (11 checks).
+  - Value ranges & non-negativity (4 checks).
+  - Chronological date ordering consistency (2 checks).
+  - Cross-column business logic & stockout flag arithmetic (3 checks).
+- [x] Implement structured `QualityReport` and `QualityCheckResult` with PASS/WARN/FAIL status and CRITICAL/WARNING severity.
+- [x] Build gated ingestion boundary (`src/data/ingestion.py`) rejecting invalid datasets via `DataQualityError`.
+- [x] Develop comprehensive corrupted fixture tests across 13 distinct anomaly categories.
+- [x] Implement CLI ingestion runner: `python -m src.data.ingestion`.
+- [x] Verify full test suite passing (46/46 tests).
 
 ---
 
