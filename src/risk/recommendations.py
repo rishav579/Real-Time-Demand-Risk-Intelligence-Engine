@@ -82,10 +82,20 @@ def generate_prescriptive_recommendations(
         surplus = max(0.0, avail - (2.0 * ss))
         dc_surplus_map[str(prod_id)] = surplus
 
+    # Priority sort candidate evaluation order so limited DC surplus goes to highest-value, shortest-runout nodes first
+    tier_rank_map = {"CRITICAL": 1, "HIGH": 2, "MEDIUM": 3, "LOW": 4}
+    abc_rank_map = {"A": 1, "B": 2, "C": 3}
+    
+    df["_tier_rank"] = df["stockout_risk_tier"].map(tier_rank_map).fillna(4)
+    df["_abc_rank"] = df["abc_class"].map(abc_rank_map).fillna(3) if "abc_class" in df.columns else 3
+    
+    # Sort stores: CRITICAL Class A first, then ascending days_to_runout
+    sorted_df = df.sort_values(["_tier_rank", "_abc_rank", "days_to_runout"]).drop(columns=["_tier_rank", "_abc_rank"])
+
     recommendations: List[Dict] = []
     rec_counter = 1
 
-    for _, row in df.iterrows():
+    for _, row in sorted_df.iterrows():
         loc_id = row["location_id"]
         loc_type = row["location_type"]
         prod_id = row["product_id"]

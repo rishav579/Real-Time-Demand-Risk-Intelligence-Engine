@@ -89,6 +89,15 @@ def render_executive_overview(service, summary: dict):
             "action_type", "recommended_qty", "days_to_runout", "root_cause", "rationale_text"
         ]
         st.dataframe(recs_df[display_cols].head(10), use_container_width=True)
+
+        # CSV Download Button
+        csv_data = recs_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Export Urgent Action Items (CSV)",
+            data=csv_data,
+            file_name=f"urgent_actions_{summary['as_of_date']}.csv",
+            mime="text/csv",
+        )
     else:
         st.success("No urgent stockout actions pending.")
 
@@ -127,6 +136,8 @@ def render_forecast_explorer(service):
 
         with st.expander("View Daily Forecast Data Table"):
             st.dataframe(node_fc, use_container_width=True)
+    else:
+        st.info("No forecast records found for the selected facility and product.")
 
 
 def render_risk_explorer(service):
@@ -136,7 +147,7 @@ def render_risk_explorer(service):
 
     all_risks = service.get_risk_positions()
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([1, 1, 1])
     tier_filter = col1.multiselect(
         "Filter by Stockout Risk Tier",
         ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
@@ -147,21 +158,34 @@ def render_risk_explorer(service):
         all_risks["root_cause"].unique().tolist(),
         default=all_risks["root_cause"].unique().tolist(),
     )
+    search_query = col3.text_input("Search SKU or Location", placeholder="e.g. BEV, Manhattan, LOC-ST-01")
 
     filtered_risks = all_risks[
         (all_risks["stockout_risk_tier"].isin(tier_filter)) &
         (all_risks["root_cause"].isin(cause_filter))
     ]
 
+    if search_query:
+        query = search_query.lower()
+        filtered_risks = filtered_risks[
+            filtered_risks["product_name"].str.lower().str.contains(query) |
+            filtered_risks["location_name"].str.lower().str.contains(query) |
+            filtered_risks["sku"].str.lower().str.contains(query) |
+            filtered_risks["location_id"].str.lower().str.contains(query)
+        ]
+
     st.markdown(f"**Showing {len(filtered_risks)} of {len(all_risks)} node positions**")
 
-    display_cols = [
-        "location_name", "product_name", "abc_xyz_segment", "stockout_risk_tier",
-        "stockout_risk_score", "days_to_runout", "starting_available_stock",
-        "safety_stock", "reorder_point", "is_excess", "capital_at_risk",
-        "root_cause", "root_cause_explanation"
-    ]
-    st.dataframe(filtered_risks[display_cols], use_container_width=True)
+    if len(filtered_risks) > 0:
+        display_cols = [
+            "location_name", "product_name", "abc_xyz_segment", "stockout_risk_tier",
+            "stockout_risk_score", "days_to_runout", "starting_available_stock",
+            "safety_stock", "reorder_point", "is_excess", "capital_at_risk",
+            "root_cause", "root_cause_explanation"
+        ]
+        st.dataframe(filtered_risks[display_cols], use_container_width=True)
+    else:
+        st.warning("No node positions match the selected filters or search query.")
 
 
 def render_recommendation_center(service):
@@ -171,7 +195,7 @@ def render_recommendation_center(service):
 
     all_recs = service.get_recommendations()
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([1, 1, 1])
     action_filter = col1.multiselect(
         "Filter Action Type",
         all_recs["action_type"].unique().tolist() if len(all_recs) > 0 else [],
@@ -182,15 +206,40 @@ def render_recommendation_center(service):
         ["URGENT", "HIGH", "MEDIUM", "LOW"],
         default=["URGENT", "HIGH", "MEDIUM", "LOW"],
     )
+    search_rec = col3.text_input("Search Recommendation", placeholder="e.g. REC-20261231, Coffee, Boston")
 
     filtered_recs = all_recs[
         (all_recs["action_type"].isin(action_filter)) &
         (all_recs["priority_tier"].isin(prio_filter))
     ]
 
+    if search_rec:
+        query = search_rec.lower()
+        filtered_recs = filtered_recs[
+            filtered_recs["recommendation_id"].str.lower().str.contains(query) |
+            filtered_recs["product_name"].str.lower().str.contains(query) |
+            filtered_recs["location_name"].str.lower().str.contains(query) |
+            filtered_recs["sku"].str.lower().str.contains(query)
+        ]
+
     st.markdown(f"**Showing {len(filtered_recs)} of {len(all_recs)} Action Recommendations**")
 
-    for _, rec in filtered_recs.head(15).iterrows():
+    # CSV Export Button for entire recommendation set
+    if len(filtered_recs) > 0:
+        csv_data = filtered_recs.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Export Filtered Recommendations (CSV)",
+            data=csv_data,
+            file_name="prescriptive_recommendations.csv",
+            mime="text/csv",
+        )
+        st.markdown("###")
+
+    if len(filtered_recs) == 0:
+        st.warning("No recommendations match the selected filters.")
+        return
+
+    for _, rec in filtered_recs.head(20).iterrows():
         with st.container():
             prio_badge = "🔴 URGENT" if rec["priority_tier"] == "URGENT" else ("🟠 HIGH" if rec["priority_tier"] == "HIGH" else "🟡 MEDIUM" if rec["priority_tier"] == "MEDIUM" else "🟢 LOW")
             st.markdown(
@@ -218,7 +267,12 @@ def render_sku_drilldown(service):
     sel_loc = col1.selectbox("Facility", locations, index=0, key="drill_loc")
     sel_prod = col2.selectbox("Product SKU", products, index=0, key="drill_prod")
 
-    node_risk = all_risks[(all_risks["location_id"] == sel_loc) & (all_risks["product_id"] == sel_prod)].iloc[0]
+    matching = all_risks[(all_risks["location_id"] == sel_loc) & (all_risks["product_id"] == sel_prod)]
+    if len(matching) == 0:
+        st.warning("No inventory data found for the selected node.")
+        return
+
+    node_risk = matching.iloc[0]
 
     st.markdown(f"### Position: **{node_risk['product_name']}** @ *{node_risk['location_name']}* (`{node_risk['abc_xyz_segment']}`)")
 

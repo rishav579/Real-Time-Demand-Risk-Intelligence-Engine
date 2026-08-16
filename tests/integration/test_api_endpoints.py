@@ -89,6 +89,20 @@ def test_endpoint_recommendations(api_client):
         assert rec["priority_tier"] == "URGENT"
 
 
+def test_endpoint_invalid_location_returns_404(api_client):
+    """Verify querying non-existent location returns 404 Not Found."""
+    resp = api_client.get("/forecast?location_id=NON_EXISTENT_FACILITY")
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
+
+
+def test_endpoint_invalid_product_returns_404(api_client):
+    """Verify querying non-existent product returns 404 Not Found."""
+    resp = api_client.get("/risk?product_id=NON_EXISTENT_SKU")
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
+
+
 def test_prefixed_api_routes(api_client):
     """Verify /api/v1 prefix routes."""
     resp = api_client.get("/api/v1/health")

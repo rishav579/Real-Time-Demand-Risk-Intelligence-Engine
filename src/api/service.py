@@ -1,7 +1,7 @@
 """Central intelligence service providing cached analytical access for APIs and UI."""
 
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -31,6 +31,8 @@ class IntelligenceService:
         self._forecasts_df: Optional[pd.DataFrame] = None
         self._risk_nodes_df: Optional[pd.DataFrame] = None
         self._recommendations_df: Optional[pd.DataFrame] = None
+        self._known_locations: Set[str] = set()
+        self._known_products: Set[str] = set()
         self._initialized: bool = False
 
     def initialize(self, force_refresh: bool = False) -> None:
@@ -60,7 +62,21 @@ class IntelligenceService:
         # 4. Generate Prescriptive Action Recommendations
         self._recommendations_df = generate_prescriptive_recommendations(self._risk_nodes_df)
 
+        # Cache entity sets for fast validation
+        self._known_locations = set(self._risk_nodes_df["location_id"].unique())
+        self._known_products = set(self._risk_nodes_df["product_id"].unique())
+
         self._initialized = True
+
+    def is_valid_location(self, location_id: str) -> bool:
+        """Check if location identifier exists in network catalog."""
+        self.initialize()
+        return location_id in self._known_locations
+
+    def is_valid_product(self, product_id: str) -> bool:
+        """Check if product identifier exists in product catalog."""
+        self.initialize()
+        return product_id in self._known_products
 
     def get_executive_summary(self) -> Dict:
         """Generate high-level executive KPI metrics."""

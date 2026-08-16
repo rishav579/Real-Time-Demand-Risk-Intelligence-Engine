@@ -135,3 +135,119 @@ def test_priority_ranking_urgent_before_low(sample_risk_df):
 
     priorities = recs["priority_tier"].tolist()
     assert priorities == ["URGENT", "LOW"]
+
+
+def test_dc_surplus_allocation_prioritizes_urgent_and_class_a():
+    """Verify that when DC surplus is constrained, the most urgent Class A store claims the stock first."""
+    as_of = date(2026, 12, 31)
+    df = pd.DataFrame([
+        # DC Node with only 50 surplus units (Available = 150, SS = 50 -> Surplus = 50)
+        {
+            "as_of_date": as_of,
+            "location_id": "LOC-DC-01",
+            "location_name": "Central DC",
+            "location_type": "DC",
+            "product_id": "PRD-BEV-001",
+            "sku": "SKU-BEV-001",
+            "product_name": "Cold Brew Coffee 12oz",
+            "abc_class": "A",
+            "xyz_class": "X",
+            "abc_xyz_segment": "AX",
+            "standard_lead_time_days": 7,
+            "starting_available_stock": 150.0,
+            "in_transit_units": 0.0,
+            "forecast_demand_30d": 600.0,
+            "avg_daily_forecast": 20.0,
+            "days_to_runout": 7.5,
+            "stockout_risk_score": 0.0,
+            "stockout_risk_tier": "LOW",
+            "is_excess": False,
+            "days_of_supply_forecast": 7.5,
+            "excess_units": 0.0,
+            "capital_at_risk": 0.0,
+            "safety_stock": 50.0,
+            "reorder_point": 190.0,
+            "inventory_position": 150.0,
+            "target_inventory_level": 470.0,
+            "reorder_triggered": False,
+            "root_cause": "NOMINAL_STABLE",
+            "supplier_id": "SUP-001",
+        },
+        # Store A: Class C with 2 days to runout (Deficit = 50)
+        {
+            "as_of_date": as_of,
+            "location_id": "LOC-ST-01",
+            "location_name": "Store 1",
+            "location_type": "STORE",
+            "product_id": "PRD-BEV-001",
+            "sku": "SKU-BEV-001",
+            "product_name": "Cold Brew Coffee 12oz",
+            "abc_class": "C",
+            "xyz_class": "X",
+            "abc_xyz_segment": "CX",
+            "standard_lead_time_days": 7,
+            "starting_available_stock": 10.0,
+            "in_transit_units": 0.0,
+            "forecast_demand_30d": 150.0,
+            "avg_daily_forecast": 5.0,
+            "days_to_runout": 2.0,
+            "stockout_risk_score": 71.43,
+            "stockout_risk_tier": "CRITICAL",
+            "is_excess": False,
+            "days_of_supply_forecast": 2.0,
+            "excess_units": 0.0,
+            "capital_at_risk": 0.0,
+            "safety_stock": 15.0,
+            "reorder_point": 50.0,
+            "inventory_position": 10.0,
+            "target_inventory_level": 120.0,
+            "reorder_triggered": True,
+            "root_cause": "UNDER_REPLENISHED",
+            "supplier_id": "SUP-001",
+        },
+        # Store B: Class A with 0.5 days to runout (Deficit = 50)
+        {
+            "as_of_date": as_of,
+            "location_id": "LOC-ST-02",
+            "location_name": "Store 2",
+            "location_type": "STORE",
+            "product_id": "PRD-BEV-001",
+            "sku": "SKU-BEV-001",
+            "product_name": "Cold Brew Coffee 12oz",
+            "abc_class": "A",
+            "xyz_class": "X",
+            "abc_xyz_segment": "AX",
+            "standard_lead_time_days": 7,
+            "starting_available_stock": 5.0,
+            "in_transit_units": 0.0,
+            "forecast_demand_30d": 300.0,
+            "avg_daily_forecast": 10.0,
+            "days_to_runout": 0.5,
+            "stockout_risk_score": 92.86,
+            "stockout_risk_tier": "CRITICAL",
+            "is_excess": False,
+            "days_of_supply_forecast": 0.5,
+            "excess_units": 0.0,
+            "capital_at_risk": 0.0,
+            "safety_stock": 25.0,
+            "reorder_point": 95.0,
+            "inventory_position": 5.0,
+            "target_inventory_level": 235.0,
+            "reorder_triggered": True,
+            "root_cause": "DEMAND_SURGE",
+            "supplier_id": "SUP-001",
+        },
+    ])
+
+    recs = generate_prescriptive_recommendations(df)
+
+    # Store 2 (Class A, 0.5d runout) should get the DC transfer
+    # Store 1 (Class C, 2.0d runout) should get the supplier purchase order since DC surplus was exhausted
+    st2_rec = recs[recs["location_id"] == "LOC-ST-02"].iloc[0]
+    st1_rec = recs[recs["location_id"] == "LOC-ST-01"].iloc[0]
+
+    assert st2_rec["action_type"] == ActionType.DC_TRANSFER.value
+    assert st2_rec["priority_tier"] == PriorityTier.URGENT.value
+
+    assert st1_rec["action_type"] == ActionType.PURCHASE_ORDER.value
+    assert st1_rec["priority_tier"] == PriorityTier.HIGH.value
