@@ -66,7 +66,8 @@ class LightGBMDemandForecaster(BaseForecaster):
             self.model.fit(
                 X_train,
                 y_train,
-                eval_set=[(X_val, y_val)],
+                eval_X=X_val,
+                eval_y=y_val,
                 callbacks=[lgb.early_stopping(stopping_rounds=20, verbose=False)],
             )
         else:

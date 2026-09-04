@@ -13,7 +13,9 @@ Retail and distribution networks operating across regional fulfillment centers a
 - **Excess Inventory & Working Capital Lockup**: Over-ordering in low-velocity categories causes bloated holding costs, warehouse capacity strain, and markdown erosion.
 - **Supplier Lead Time Volatility**: Unreliable supplier fulfillment and inbound delays amplify upstream bullwhip effects.
 
-Traditional inventory management relies on static historical averages or disconnected spreadsheets. The **Real-Time Demand & Risk Intelligence Engine** bridges transaction-level telemetry with proactive operational decision support.
+Traditional inventory management relies on static historical averages or disconnected spreadsheets. The **Real-Time Demand & Risk Intelligence Engine** bridges transaction-level telemetry with proactive operational decision support over daily batch snapshots (`as_of_date`).
+
+> **Operational Architecture Note**: The system provides interactive decision support over deterministic daily batch snapshots. Analytics, multi-horizon demand forecasting, and prescriptive risk engines execute in-memory queries against a relational snapshot database to deliver instant operational recommendations for replenishment planners.
 
 ---
 
@@ -223,7 +225,7 @@ real-time-demand-risk-engine/
 # 1. Ingest clean data and seed SQLite database
 python -m src.data.ingestion
 
-# 2. Run complete test suite (117 tests)
+# 2. Run complete test suite (119 tests)
 python -m pytest
 
 # 3. Launch FastAPI REST Service
