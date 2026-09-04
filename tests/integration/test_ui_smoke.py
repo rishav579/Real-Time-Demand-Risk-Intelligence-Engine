@@ -43,7 +43,31 @@ def test_ui_data_feeds_build_cleanly(ui_service):
 
     # 4. Recommendation center data feeds
     all_recs = ui_service.get_recommendations()
-    assert len(all_recs) == 48
+    assert not all_recs.empty
+    assert not all_recs.isna().any().any()
+
+    expected_cols = [
+        "recommendation_id", "created_date", "location_id", "location_name",
+        "product_id", "sku", "product_name", "abc_xyz_segment", "action_type",
+        "priority_tier", "current_available_stock", "forecast_daily_demand",
+        "days_to_runout", "safety_stock", "reorder_point", "recommended_qty",
+        "source_identifier", "root_cause", "rationale_text"
+    ]
+    for col in expected_cols:
+        assert col in all_recs.columns
+
+    assert set(all_recs["action_type"].unique()).issubset({"DC_TRANSFER", "PURCHASE_ORDER", "HOLD_ORDER", "PROMOTION_CANDIDATE"})
+    assert set(all_recs["priority_tier"].unique()).issubset({"URGENT", "HIGH", "MEDIUM", "LOW"})
+
+    # Verify every recommendation maps directly to a valid risk trigger condition
+    triggered_nodes = set(
+        zip(
+            risks[risks["reorder_triggered"] | risks["stockout_risk_tier"].isin(["CRITICAL", "HIGH"]) | risks["is_excess"]]["location_id"],
+            risks[risks["reorder_triggered"] | risks["stockout_risk_tier"].isin(["CRITICAL", "HIGH"]) | risks["is_excess"]]["product_id"],
+        )
+    )
+    rec_nodes = set(zip(all_recs["location_id"], all_recs["product_id"]))
+    assert rec_nodes.issubset(triggered_nodes)
 
     # 5. SKU Drilldown feeds
     node_risk = risks[(risks["location_id"] == "LOC-ST-01") & (risks["product_id"] == "PRD-BEV-001")].iloc[0]

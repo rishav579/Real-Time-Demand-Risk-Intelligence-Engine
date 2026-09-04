@@ -9,6 +9,7 @@ from sqlalchemy.engine import Engine
 
 from src.analytics.marts import build_all_marts
 from src.config.settings import get_settings
+from src.forecasting.evaluate import compute_wape
 from src.forecasting.features import build_forecasting_dataset
 from src.forecasting.model import LightGBMDemandForecaster
 from src.forecasting.splits import create_temporal_splits
@@ -35,6 +36,7 @@ class IntelligenceService:
         self._forecasts_df: Optional[pd.DataFrame] = None
         self._risk_nodes_df: Optional[pd.DataFrame] = None
         self._recommendations_df: Optional[pd.DataFrame] = None
+        self._champion_wape: float = 0.0
         self._known_locations: Set[str] = set()
         self._known_products: Set[str] = set()
         self._initialized: bool = False
@@ -57,6 +59,10 @@ class IntelligenceService:
             train_df, val_df, test_df = create_temporal_splits(feat_df)
             forecaster = LightGBMDemandForecaster(random_state=42).fit(train_df, val_df)
             self._forecasts_df = forecaster.predict(test_df, horizon_days=30)
+            self._champion_wape = compute_wape(
+                self._forecasts_df["y_true"].values,
+                self._forecasts_df["y_pred"].values,
+            )
 
             # 3. Simulate Runout, Safety Stock, Risk Scoring, and Attribution
             sim_df = simulate_network_runout(
@@ -118,7 +124,7 @@ class IntelligenceService:
             "total_capital_at_risk": tot_cap_risk,
             "total_annual_holding_cost": tot_hold_cost,
             "champion_model_name": "LightGBM",
-            "champion_model_wape": 0.1097,
+            "champion_model_wape": self._champion_wape,
             "total_recommendations": len(recs_df),
             "dc_transfer_recommendations": dc_trans,
             "purchase_order_recommendations": po_count,
